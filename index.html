@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAC · Gestió Econòmica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#F3F1EC; --surface:#FFFFFF; --surface-2:#EAE7DF; --border:#D8D3C6;
+    --text:#1D1B18; --text-muted:#6B6558; --accent:#A8232E; --accent-ink:#FFFFFF;
+    --positive:#1F6E56; --positive-bg:#DCEEE7;
+    --negative:#A8232E; --negative-bg:#F6DEE0;
+    --warn:#8A5A12; --warn-bg:#F3E6C9; --focus:#2F6F9E;
+    --font-display:'Bebas Neue','Arial Narrow',sans-serif;
+    --font-body:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17171B; --surface:#1F2024; --surface-2:#26272C; --border:#3A3A40;
+      --text:#ECEAE4; --text-muted:#9A9AA2; --accent:#E14654; --accent-ink:#17171B;
+      --positive:#3EBE9A; --positive-bg:#173029; --negative:#E14654; --negative-bg:#331A1D;
+      --warn:#E0AF52; --warn-bg:#332A15; --focus:#6CB2E8;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;}
+  h1,h2,h3{font-family:var(--font-display);letter-spacing:.02em;font-weight:400;margin:0;}
+  button{font-family:var(--font-body);cursor:pointer;}
+  input,select{font-family:var(--font-body);}
+  a{color:var(--accent);}
+  ::selection{background:var(--accent);color:var(--accent-ink);}
+  .hidden{display:none !important;}
+
+  #loading-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px;}
+
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;width:100%;max-width:380px;padding:36px 32px;}
+  .login-card h1{font-size:44px;line-height:1;color:var(--accent);margin-bottom:4px;}
+  .login-card .sub{color:var(--text-muted);font-size:14px;margin-bottom:28px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;color:var(--text-muted);margin-bottom:6px;}
+  .field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--text);font-size:15px;}
+  .field input:focus,.field select:focus,button:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+  .btn-primary{width:100%;padding:12px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:3px;font-size:15px;font-weight:600;margin-top:8px;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed;}
+  .login-error{color:var(--negative);font-size:13px;margin-top:10px;min-height:16px;}
+
+  #app{display:none;min-height:100vh;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:5;}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand h1{font-size:26px;color:var(--accent);}
+  .brand span{font-size:12px;color:var(--text-muted);}
+  .who{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--text-muted);}
+  .who b{color:var(--text);}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:3px;font-size:13px;}
+  .btn-ghost:hover{background:var(--surface-2);}
+
+  .layout{display:flex;max-width:1180px;margin:0 auto;min-height:calc(100vh - 60px);}
+  nav.side{width:190px;flex-shrink:0;padding:22px 14px;border-right:1px solid var(--border);}
+  .nav-group{margin-bottom:22px;}
+  .nav-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px;padding:0 8px;}
+  .nav-btn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:9px 10px;border-radius:3px;font-size:14.5px;margin-bottom:2px;}
+  .nav-btn:hover{background:var(--surface-2);}
+  .nav-btn.active{background:var(--accent);color:var(--accent-ink);font-weight:600;}
+
+  main{flex:1;padding:26px 30px;min-width:0;}
+  .content-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px;}
+  .content-header h2{font-size:30px;}
+  .content-header .desc{color:var(--text-muted);font-size:13.5px;}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:20px;margin-bottom:20px;}
+  .panel h3{font-size:20px;margin-bottom:14px;color:var(--text);}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:7px 10px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tr.total-row td{font-weight:700;border-top:2px solid var(--text);border-bottom:none;padding-top:10px;}
+  .cell-input{width:100%;padding:5px 7px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--text);font-size:13.5px;text-align:right;font-variant-numeric:tabular-nums;}
+  .cell-input.text{text-align:left;}
+
+  .balance-row{display:flex;gap:14px;margin-top:16px;flex-wrap:wrap;}
+  .balance-box{flex:1;min-width:160px;padding:14px 16px;border-radius:4px;border:1px solid var(--border);}
+  .balance-box .label{font-size:12px;color:var(--text-muted);margin-bottom:4px;}
+  .balance-box .value{font-size:26px;font-family:var(--font-display);}
+  .balance-box.pos{background:var(--positive-bg);}
+  .balance-box.pos .value{color:var(--positive);}
+  .balance-box.neg{background:var(--negative-bg);}
+  .balance-box.neg .value{color:var(--negative);}
+
+  .quota-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-bottom:6px;}
+  .quota-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:3px;background:var(--bg);font-size:13.5px;}
+  .quota-item input[type=checkbox]{width:17px;height:17px;flex-shrink:0;accent-color:var(--positive);}
+  .quota-item.paid{border-color:var(--positive);}
+  .quota-summary{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap;}
+  .quota-summary .balance-box{min-width:150px;}
+
+  .row-actions{display:flex;gap:6px;}
+  .icon-btn{background:none;border:1px solid var(--border);border-radius:3px;width:26px;height:26px;color:var(--text-muted);font-size:14px;line-height:1;}
+  .icon-btn:hover{color:var(--negative);border-color:var(--negative);}
+  .add-row-btn{margin-top:10px;background:none;border:1px dashed var(--border);color:var(--text-muted);padding:7px 12px;border-radius:3px;font-size:13px;}
+  .add-row-btn:hover{color:var(--text);border-color:var(--text);}
+
+  .save-toast{position:fixed;bottom:20px;right:20px;background:var(--positive);color:var(--bg);padding:10px 18px;border-radius:4px;font-size:13px;font-weight:600;opacity:0;transform:translateY(8px);transition:all .25s ease;pointer-events:none;z-index:100;}
+  .save-toast.show{opacity:1;transform:translateY(0);}
+  .save-toast.error{background:var(--negative);}
+
+  @media (max-width:760px){
+    .layout{flex-direction:column;}
+    nav.side{width:100%;border-right:none;border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:12px 14px;gap:18px;}
+    .nav-group{margin-bottom:0;flex-shrink:0;}
+    .nav-btn{padding:7px 10px;white-space:nowrap;}
+    main{padding:20px 16px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">Carregant…</div>
+
+<div id="login-screen" class="hidden">
+  <div class="login-card">
+    <h1>TAC</h1>
+    <div class="sub">Gestió econòmica · Accés restringit</div>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-email">Correu electrònic</label>
+        <input type="email" id="login-email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="login-password">Contrasenya</label>
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" id="login-btn">Entrar</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brand"><h1>TAC</h1><span>Gestió econòmica</span></div>
+    <div class="who">
+      <span id="user-email"></span>
+      <button class="btn-ghost" id="logout-btn">Tancar sessió</button>
+    </div>
+  </div>
+  <div class="layout">
+    <nav class="side" id="side-nav"></nav>
+    <main id="main-content"></main>
+  </div>
+</div>
+
+<div class="save-toast" id="save-toast">Desat</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const SUPABASE_URL = 'https://mdcoxadgfvgvjziilszg.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_QB3fS9koWM6M4kHuC8HTZQ_FSCAag3p';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes"};
+  const YEARS = [2026, 2025, 2024];
+
+  // Dades originals de l'Excel — només s'utilitzen per inicialitzar la base de dades la primera vegada
+  const SEED_DATA = {
+    2026: {
+      ingressos: [
+        {concepte:"Romanent 2025", previst:506.24, real:506.24},
+        {concepte:"16 Quotes Festivals", previst:960, real:300},
+        {concepte:"6 Quotes festivals amics", previst:60, real:0},
+        {concepte:"Xerrada Festival 42", previst:145, real:0},
+        {concepte:"Quotes pendents 2025", previst:300, real:180}
+      ],
+      despeses: [
+        {concepte:"Confecció premis", previst:250, real:0, justificant:"-"},
+        {concepte:"Dinar TAC 2025", previst:250, real:141.6, justificant:"Factura"},
+        {concepte:"8 habitacions dobles", previst:448, real:0, justificant:"-"},
+        {concepte:"Rollup 2 x 2,06", previst:100, real:105, justificant:"Factura"},
+        {concepte:"Comissions banc", previst:55, real:35, justificant:"Rebut"},
+        {concepte:"WEB", previst:250, real:0, justificant:"-"},
+        {concepte:"Google", previst:0, real:0, justificant:"-"}
+      ],
+      quotesTac:["SABADELL","GALACTICAT","CRYPTSHOW","INFEST","FANT BOI","FANTOSFREAK","FANGOFEST",
+        "B-RETINA","BARCELONA FANTASY","CARDOTERROR","TERRORMOLINS","BAI DE FEST","ACOCOLLONA'T","WALLPURGIS QUEER",
+        "SANG CELONI","TABACA FILM FEST"].map(n=>({nom:n,
+          pagat:["CRYPTSHOW","INFEST","CARDOTERROR","BAI DE FEST","ACOCOLLONA'T"].includes(n)})),
+      quotesAmics:["MONSTRUITO","FASCURT","MABUSE","GFFF","Curtas de Galícia","CutreCon"].map(n=>({nom:n,pagat:false}))
+    },
+    2025: {
+      ingressos: [
+        {concepte:"Romanent 2024", previst:396.23, real:396.23},
+        {concepte:"16 Quotes Festivals", previst:960, real:780},
+        {concepte:"6 Quotes festivals amics", previst:60, real:30},
+        {concepte:"Xerrada Festival 42", previst:145, real:0}
+      ],
+      despeses: [
+        {concepte:"Confecció premis", previst:250, real:200, justificant:"-"},
+        {concepte:"Dinar per 5 directors + 3 jurat", previst:250, real:0, justificant:"-"},
+        {concepte:"8 habitacions dobles", previst:448, real:0, justificant:"-"},
+        {concepte:"Rollup 2 x 2,06", previst:100, real:245, justificant:"Factura"},
+        {concepte:"Comissions banc", previst:55, real:55, justificant:"Rebut"},
+        {concepte:"WEB", previst:250, real:0, justificant:"-"},
+        {concepte:"Google", previst:0, real:19.99, justificant:"-"}
+      ],
+      quotesTac:["SABADELL","GALACTICAT","CRYPTSHOW","INFEST","FANT BOI","FANTOSFREAK","FANGOFEST",
+        "B-RETINA","BARCELONA FANTASY","CARDOTERROR","TERRORMOLINS","BAI DE FEST","ACOCOLLONA'T","SANG CELONI",
+        "WALLPURGIS","Fantàstik Granollers"].map(n=>({nom:n,
+          pagat:!["GALACTICAT","B-RETINA","Fantàstik Granollers"].includes(n)})),
+      quotesAmics:["MONSTRUITO","FASCURT","MABUSE","GFFF","Curtas de Galícia","CutreCon"].map(n=>({nom:n,
+        pagat:["MONSTRUITO","FASCURT","Curtas de Galícia"].includes(n)}))
+    },
+    2024: {
+      ingressos: [
+        {concepte:"Remenent 2023", previst:381.34, real:535.42},
+        {concepte:"Quotes 14 Festivals", previst:840, real:830},
+        {concepte:"Quotes festivals amics", previst:40, real:40},
+        {concepte:"Ajust caixa", previst:0, real:47}
+      ],
+      despeses: [
+        {concepte:"Confecció premis", previst:250, real:250, justificant:"Altre"},
+        {concepte:"Dinar per 5 directors + 3 jurat", previst:250, real:250, justificant:"Altre"},
+        {concepte:"8 habitacions dobles", previst:448, real:345, justificant:"Rebut"},
+        {concepte:"Rollup 2 x 2,06", previst:85, real:120, justificant:"Factura"},
+        {concepte:"Comissions banc", previst:60, real:72, justificant:"Rebut"},
+        {concepte:"Compte premium Vimeo", previst:85, real:19.19, justificant:"Altre"},
+        {concepte:"Ajust caixa", previst:0, real:0, justificant:"Altre"}
+      ],
+      quotesTac:["SABADELL","GALACTICAT","CRYPTSHOW","INFEST","FANT BOI","FANTÀSTIK GRANOLLERS","ACOCOLLONA'T",
+        "FANTOSFREAK","FANGOFEST","B-RETINA","BARCELONA FANTASY","CARDOTERROR","TERRORMOLINS","BAI DE FEST"]
+        .map(n=>({nom:n, pagat:true})),
+      quotesAmics:["MONSTRUITO","FASCURT","MABUSE","GFFF"].map(n=>({nom:n,pagat:true}))
+    }
+  };
+
+  let DATA = null;   // { 2026: {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]}, ... }
+  let currentYear = 2026;
+  let currentSection = "ingressos";
+  let currentUser = null;
+
+  // ---------- TOAST ----------
+  let toastTimer;
+  function toast(msg, isError){
+    const t = document.getElementById("save-toast");
+    t.textContent = msg || "Desat";
+    t.classList.toggle("error", !!isError);
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove("show"), 1500);
+  }
+
+  // ---------- HELPERS ----------
+  const fmt = n => (Math.round((+n||0)*100)/100).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
+  const sum = (arr, key) => arr.reduce((a,b)=>a+(+b[key]||0),0);
+
+  // ---------- AUTH ----------
+  function showLoading(){
+    document.getElementById("loading-screen").classList.remove("hidden");
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("app").style.display = "none";
+  }
+  function showLogin(){
+    document.getElementById("loading-screen").classList.add("hidden");
+    document.getElementById("login-screen").classList.remove("hidden");
+    document.getElementById("app").style.display = "none";
+  }
+  function showApp(){
+    document.getElementById("loading-screen").classList.add("hidden");
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("app").style.display = "block";
+    document.getElementById("user-email").textContent = currentUser ? currentUser.email : "";
+  }
+
+  document.getElementById("login-form").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const btn = document.getElementById("login-btn");
+    const errBox = document.getElementById("login-error");
+    errBox.textContent = "";
+    btn.disabled = true; btn.textContent = "Entrant…";
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = "Entrar";
+    if(error){
+      errBox.textContent = "Credencials incorrectes o error de connexió.";
+      return;
+    }
+    currentUser = data.user;
+    await bootApp();
+  });
+
+  document.getElementById("logout-btn").addEventListener("click", async ()=>{
+    await sb.auth.signOut();
+    currentUser = null;
+    DATA = null;
+    document.getElementById("login-password").value = "";
+    showLogin();
+  });
+
+  // ---------- DATA LOAD / SEED ----------
+  async function fetchAll(){
+    const { data, error } = await sb.from("finances").select("*");
+    if(error) throw error;
+    const { data: quotes, error: e2 } = await sb.from("quotes").select("*");
+    if(e2) throw e2;
+
+    const result = {};
+    YEARS.forEach(y=>{ result[y] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]}; });
+
+    (data||[]).forEach(r=>{
+      const y = r.year;
+      if(!result[y]) result[y] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]};
+      const item = { id:r.id, concepte:r.concepte, previst:Number(r.previst)||0, real:Number(r.real)||0 };
+      if(r.kind === "despeses") item.justificant = r.justificant || "-";
+      result[y][r.kind].push(item);
+    });
+    (quotes||[]).forEach(r=>{
+      const y = r.year;
+      if(!result[y]) result[y] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]};
+      const listKey = r.tipus === "tac" ? "quotesTac" : "quotesAmics";
+      result[y][listKey].push({ id:r.id, nom:r.nom, pagat:!!r.pagat });
+    });
+    return result;
+  }
+
+  async function seedIfEmpty(){
+    const { count, error } = await sb.from("finances").select("*", {count:"exact", head:true});
+    if(error) throw error;
+    if(count > 0) return;
+
+    const finRows = [];
+    const quoteRows = [];
+    YEARS.forEach(y=>{
+      const d = SEED_DATA[y];
+      d.ingressos.forEach(r=> finRows.push({
+        year:y, kind:"ingressos", concepte:r.concepte, previst:r.previst, real:r.real, justificant:null
+      }));
+      d.despeses.forEach(r=> finRows.push({
+        year:y, kind:"despeses", concepte:r.concepte, previst:r.previst, real:r.real, justificant:r.justificant||"-"
+      }));
+      d.quotesTac.forEach(q=> quoteRows.push({ year:y, tipus:"tac", nom:q.nom, pagat:q.pagat }));
+      d.quotesAmics.forEach(q=> quoteRows.push({ year:y, tipus:"amics", nom:q.nom, pagat:q.pagat }));
+    });
+
+    const { error:e1 } = await sb.from("finances").insert(finRows);
+    if(e1) throw e1;
+    const { error:e2 } = await sb.from("quotes").insert(quoteRows);
+    if(e2) throw e2;
+  }
+
+  async function bootApp(){
+    showLoading();
+    try{
+      await seedIfEmpty();
+      DATA = await fetchAll();
+      showApp();
+      renderAll();
+    }catch(err){
+      console.error(err);
+      toast("Error carregant dades: " + (err.message||err), true);
+      showApp();
+    }
+  }
+
+  // ---------- RENDER ----------
+  function renderAll(){ renderNav(); renderMain(); }
+
+  function renderNav(){
+    const nav = document.getElementById("side-nav");
+    nav.innerHTML = "";
+    const gYear = document.createElement("div");
+    gYear.className = "nav-group";
+    gYear.innerHTML = '<div class="nav-label">Any</div>';
+    YEARS.forEach(y=>{
+      const b = document.createElement("button");
+      b.className = "nav-btn" + (y===currentYear ? " active":"");
+      b.textContent = y;
+      b.addEventListener("click", ()=>{ currentYear = y; renderAll(); });
+      gYear.appendChild(b);
+    });
+    nav.appendChild(gYear);
+
+    const gSec = document.createElement("div");
+    gSec.className = "nav-group";
+    gSec.innerHTML = '<div class="nav-label">Secció</div>';
+    Object.keys(SECTION_LABELS).forEach(s=>{
+      const b = document.createElement("button");
+      b.className = "nav-btn" + (s===currentSection ? " active":"");
+      b.textContent = SECTION_LABELS[s];
+      b.addEventListener("click", ()=>{ currentSection = s; renderAll(); });
+      gSec.appendChild(b);
+    });
+    nav.appendChild(gSec);
+  }
+
+  function renderMain(){
+    const main = document.getElementById("main-content");
+    main.innerHTML = "";
+    const header = document.createElement("div");
+    header.className = "content-header";
+    header.innerHTML = '<h2>'+SECTION_LABELS[currentSection]+' '+currentYear+'</h2>'+
+      '<span class="desc">Els canvis es desen automàticament al servidor.</span>';
+    main.appendChild(header);
+
+    if(!DATA || !DATA[currentYear]){ main.appendChild(document.createTextNode("Sense dades.")); return; }
+
+    if(currentSection === "quotes") main.appendChild(buildQuotesPanel());
+    else main.appendChild(buildMoneyPanel(currentSection));
+  }
+
+  function buildMoneyPanel(kind){
+    const yearData = DATA[currentYear];
+    const rows = yearData[kind];
+    const hasJust = kind === "despeses";
+    const panel = document.createElement("div");
+    panel.className = "panel";
+
+    const table = document.createElement("table");
+    table.innerHTML = '<thead><tr>'+
+      '<th>Concepte</th><th class="num">Previst</th><th class="num">Real</th>'+
+      (hasJust ? '<th>Justificant</th>' : '')+'<th></th></tr></thead>';
+    const tbody = document.createElement("tbody");
+
+    rows.forEach(row=>{
+      const tr = document.createElement("tr");
+      const tdC = document.createElement("td");
+      const inpC = document.createElement("input");
+      inpC.className = "cell-input text"; inpC.value = row.concepte;
+      inpC.addEventListener("change", async ()=>{
+        row.concepte = inpC.value;
+        const { error } = await sb.from("finances").update({concepte:row.concepte}).eq("id", row.id);
+        if(error){ toast("Error desant", true); console.error(error); } else toast();
+      });
+      tdC.appendChild(inpC); tr.appendChild(tdC);
+
+      ["previst","real"].forEach(f=>{
+        const td = document.createElement("td"); td.className = "num";
+        const inp = document.createElement("input");
+        inp.className = "cell-input"; inp.type = "number"; inp.step = "0.01"; inp.value = row[f];
+        inp.addEventListener("input", ()=>{ row[f] = parseFloat(inp.value)||0; updateTotals(kind); });
+        inp.addEventListener("change", async ()=>{
+          const { error } = await sb.from("finances").update({[f]:row[f]}).eq("id", row.id);
+          if(error){ toast("Error desant", true); console.error(error); } else toast();
+        });
+        td.appendChild(inp); tr.appendChild(td);
+      });
+
+      if(hasJust){
+        const td = document.createElement("td");
+        const inp = document.createElement("input");
+        inp.className = "cell-input text"; inp.value = row.justificant || "";
+        inp.addEventListener("change", async ()=>{
+          row.justificant = inp.value;
+          const { error } = await sb.from("finances").update({justificant:row.justificant}).eq("id", row.id);
+          if(error){ toast("Error desant", true); console.error(error); } else toast();
+        });
+        td.appendChild(inp); tr.appendChild(td);
+      }
+
+      const tdX = document.createElement("td");
+      const btn = document.createElement("button");
+      btn.className = "icon-btn"; btn.textContent = "✕"; btn.title = "Eliminar fila";
+      btn.addEventListener("click", async ()=>{
+        if(!confirm("Segur que vols eliminar aquesta fila?")) return;
+        const { error } = await sb.from("finances").delete().eq("id", row.id);
+        if(error){ toast("Error eliminant", true); console.error(error); return; }
+        DATA[currentYear][kind] = rows.filter(r=>r.id!==row.id);
+        toast("Eliminat"); renderMain();
+      });
+      tdX.appendChild(btn); tr.appendChild(tdX);
+      tbody.appendChild(tr);
+    });
+
+    const trT = document.createElement("tr");
+    trT.className = "total-row";
+    trT.innerHTML = '<td>Total</td>'+
+      '<td class="num" data-total="previst">'+fmt(sum(rows,"previst"))+'</td>'+
+      '<td class="num" data-total="real">'+fmt(sum(rows,"real"))+'</td>'+
+      (hasJust ? '<td></td>' : '')+'<td></td>';
+    tbody.appendChild(trT);
+    table.appendChild(tbody);
+    panel.appendChild(table);
+
+    const add = document.createElement("button");
+    add.className = "add-row-btn"; add.textContent = "+ Afegir concepte";
+    add.addEventListener("click", async ()=>{
+      const payload = {year:currentYear, kind, concepte:"Nou concepte", previst:0, real:0};
+      if(hasJust) payload.justificant = "-";
+      const { data, error } = await sb.from("finances").insert(payload).select().single();
+      if(error){ toast("Error afegint", true); console.error(error); return; }
+      const nr = { id:data.id, concepte:data.concepte, previst:data.previst, real:data.real };
+      if(hasJust) nr.justificant = data.justificant;
+      yearData[kind].push(nr);
+      toast(); renderMain();
+    });
+    panel.appendChild(add);
+
+    const bal = document.createElement("div");
+    bal.className = "balance-row";
+    bal.innerHTML = balanceHTML();
+    panel.appendChild(bal);
+    return panel;
+  }
+
+  function balanceHTML(){
+    const d = DATA[currentYear];
+    const bp = sum(d.ingressos,"previst") - sum(d.despeses,"previst");
+    const br = sum(d.ingressos,"real") - sum(d.despeses,"real");
+    return '<div class="balance-box '+(bp>=0?'pos':'neg')+'"><div class="label">Balanç previst</div><div class="value">'+fmt(bp)+'</div></div>'+
+      '<div class="balance-box '+(br>=0?'pos':'neg')+'"><div class="label">Balanç real</div><div class="value">'+fmt(br)+'</div></div>';
+  }
+
+  function updateTotals(kind){
+    const rows = DATA[currentYear][kind];
+    const tp = document.querySelector('[data-total="previst"]');
+    const tr = document.querySelector('[data-total="real"]');
+    if(tp) tp.textContent = fmt(sum(rows,"previst"));
+    if(tr) tr.textContent = fmt(sum(rows,"real"));
+    const bal = document.querySelector(".balance-row");
+    if(bal) bal.innerHTML = balanceHTML();
+  }
+
+  function buildQuotesPanel(){
+    const d = DATA[currentYear];
+    const wrap = document.createElement("div");
+    const QUOTA_TAC = 60, QUOTA_AMICS = 10;
+
+    const p1 = document.createElement("div");
+    p1.className = "panel";
+    p1.innerHTML = '<h3>Quotes de festivals ('+fmt(QUOTA_TAC)+' / festival)</h3>';
+    p1.appendChild(buildQuotaGrid(d.quotesTac));
+    wrap.appendChild(p1);
+
+    const p2 = document.createElement("div");
+    p2.className = "panel";
+    p2.innerHTML = '<h3>Quotes Amics del TAC ('+fmt(QUOTA_AMICS)+' / festival)</h3>';
+    p2.appendChild(buildQuotaGrid(d.quotesAmics));
+    wrap.appendChild(p2);
+
+    const tacPaid = d.quotesTac.filter(q=>q.pagat).length;
+    const amPaid = d.quotesAmics.filter(q=>q.pagat).length;
+    const cobrat = tacPaid*QUOTA_TAC + amPaid*QUOTA_AMICS;
+    const falta = (d.quotesTac.length-tacPaid)*QUOTA_TAC + (d.quotesAmics.length-amPaid)*QUOTA_AMICS;
+
+    const p3 = document.createElement("div");
+    p3.className = "panel";
+    p3.innerHTML = '<h3>Resum de cobrament</h3>'+
+      '<div class="quota-summary">'+
+        '<div class="balance-box pos"><div class="label">Cobrat</div><div class="value">'+fmt(cobrat)+'</div></div>'+
+        '<div class="balance-box neg"><div class="label">Falta cobrar</div><div class="value">'+fmt(falta)+'</div></div>'+
+      '</div>';
+    wrap.appendChild(p3);
+    return wrap;
+  }
+
+  function buildQuotaGrid(list){
+    const grid = document.createElement("div");
+    grid.className = "quota-grid";
+    list.forEach(item=>{
+      const div = document.createElement("label");
+      div.className = "quota-item" + (item.pagat ? " paid":"");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = item.pagat;
+      cb.addEventListener("change", async ()=>{
+        item.pagat = cb.checked;
+        const { error } = await sb.from("quotes").update({pagat:item.pagat}).eq("id", item.id);
+        if(error){ toast("Error desant", true); console.error(error); cb.checked = !item.pagat; item.pagat = !item.pagat; return; }
+        toast(); renderMain();
+      });
+      const span = document.createElement("span");
+      span.textContent = item.nom + (item.pagat ? " ✓" : "");
+      div.appendChild(cb); div.appendChild(span);
+      grid.appendChild(div);
+    });
+    return grid;
+  }
+
+  // ---------- BOOT ----------
+  (async function(){
+    showLoading();
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session && session.user){
+      currentUser = session.user;
+      await bootApp();
+    }else{
+      showLogin();
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>
