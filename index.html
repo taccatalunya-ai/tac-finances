@@ -399,8 +399,10 @@
     try{
       await seedIfEmpty();
       DATA = await fetchAll();
-      const { data: prof } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
+            const { data: prof, error: profErr } = await sb.from("profiles").select("role").maybeSingle();
+      console.log("PROF query:", { prof, profErr, userId: currentUser.id });
       MY_ROLE = (prof && prof.role) || 'viewer';
+      console.log("MY_ROLE =", MY_ROLE);
       await loadNotes();
       showApp();
       renderAll();
