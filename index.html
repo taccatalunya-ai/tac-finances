@@ -399,10 +399,15 @@
     try{
       await seedIfEmpty();
       DATA = await fetchAll();
-            const { data: prof, error: profErr } = await sb.from("profiles").select("role").maybeSingle();
-      console.log("PROF query:", { prof, profErr, userId: currentUser.id });
+            const { data: prof, error: profErr } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
+      console.log("=== DIAGNÒSTIC ROL ===");
+      console.log("userId:", currentUser.id);
+      console.log("userEmail:", currentUser.email);
+      console.log("prof:", prof);
+      console.log("profErr:", profErr ? JSON.stringify(profErr) : null);
       MY_ROLE = (prof && prof.role) || 'viewer';
-      console.log("MY_ROLE =", MY_ROLE);
+      console.log("MY_ROLE final:", MY_ROLE);
+      console.log("=======================");
       await loadNotes();
       showApp();
       renderAll();
