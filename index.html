@@ -30,7 +30,7 @@
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;}
   h1,h2,h3{font-family:var(--font-display);letter-spacing:.02em;font-weight:400;margin:0;}
   button{font-family:var(--font-body);cursor:pointer;}
-  input,select{font-family:var(--font-body);}
+  input,select,textarea{font-family:var(--font-body);}
   a{color:var(--accent);}
   ::selection{background:var(--accent);color:var(--accent-ink);}
   .hidden{display:none !important;}
@@ -44,8 +44,8 @@
   .field{margin-bottom:16px;}
   .field label{display:block;font-size:13px;color:var(--text-muted);margin-bottom:6px;}
   .field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--text);font-size:15px;}
-  .field input:focus,.field select:focus,button:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
-  .btn-primary{width:100%;padding:12px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:3px;font-size:15px;font-weight:600;margin-top:8px;}
+  .field input:focus,.field select:focus,button:focus-visible,textarea:focus{outline:2px solid var(--focus);outline-offset:1px;}
+  .btn-primary{padding:12px 20px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:3px;font-size:14px;font-weight:600;}
   .btn-primary:hover{filter:brightness(1.08);}
   .btn-primary:disabled{opacity:.6;cursor:not-allowed;}
   .login-error{color:var(--negative);font-size:13px;margin-top:10px;min-height:16px;}
@@ -59,6 +59,8 @@
   .who b{color:var(--text);}
   .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:3px;font-size:13px;}
   .btn-ghost:hover{background:var(--surface-2);}
+  .role-badge{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em;}
+  .role-badge.admin{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
 
   .layout{display:flex;max-width:1180px;margin:0 auto;min-height:calc(100vh - 60px);}
   nav.side{width:190px;flex-shrink:0;padding:22px 14px;border-right:1px solid var(--border);}
@@ -84,6 +86,7 @@
   tr.total-row td{font-weight:700;border-top:2px solid var(--text);border-bottom:none;padding-top:10px;}
   .cell-input{width:100%;padding:5px 7px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--text);font-size:13.5px;text-align:right;font-variant-numeric:tabular-nums;}
   .cell-input.text{text-align:left;}
+  .cell-input:disabled{opacity:.7;cursor:not-allowed;}
 
   .balance-row{display:flex;gap:14px;margin-top:16px;flex-wrap:wrap;}
   .balance-box{flex:1;min-width:160px;padding:14px 16px;border-radius:4px;border:1px solid var(--border);}
@@ -94,22 +97,34 @@
   .balance-box.neg{background:var(--negative-bg);}
   .balance-box.neg .value{color:var(--negative);}
 
-  .quota-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-bottom:6px;}
+  .quota-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-bottom:6px;}
   .quota-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:3px;background:var(--bg);font-size:13.5px;}
   .quota-item input[type=checkbox]{width:17px;height:17px;flex-shrink:0;accent-color:var(--positive);}
   .quota-item.paid{border-color:var(--positive);}
+  .quota-item .quota-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .quota-item .quota-name.editable{cursor:pointer;}
+  .quota-item .quota-name.editable:hover{color:var(--accent);text-decoration:underline;}
   .quota-summary{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap;}
   .quota-summary .balance-box{min-width:150px;}
 
-  .row-actions{display:flex;gap:6px;}
-  .icon-btn{background:none;border:1px solid var(--border);border-radius:3px;width:26px;height:26px;color:var(--text-muted);font-size:14px;line-height:1;}
+  .icon-btn{background:none;border:1px solid var(--border);border-radius:3px;width:26px;height:26px;color:var(--text-muted);font-size:14px;line-height:1;padding:0;}
   .icon-btn:hover{color:var(--negative);border-color:var(--negative);}
   .add-row-btn{margin-top:10px;background:none;border:1px dashed var(--border);color:var(--text-muted);padding:7px 12px;border-radius:3px;font-size:13px;}
   .add-row-btn:hover{color:var(--text);border-color:var(--text);}
 
+  .notes-list{display:flex;flex-direction:column;gap:10px;}
+  .note-item{border:1px solid var(--border);border-radius:4px;padding:12px 14px;background:var(--bg);}
+  .note-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;color:var(--text-muted);gap:8px;}
+  .note-actions{display:flex;gap:6px;flex-shrink:0;}
+  .note-body{font-size:14px;white-space:pre-wrap;color:var(--text);line-height:1.5;word-break:break-word;}
+  .note-author{font-weight:600;color:var(--text);}
+  .note-author.mine{color:var(--accent);}
+
   .save-toast{position:fixed;bottom:20px;right:20px;background:var(--positive);color:var(--bg);padding:10px 18px;border-radius:4px;font-size:13px;font-weight:600;opacity:0;transform:translateY(8px);transition:all .25s ease;pointer-events:none;z-index:100;}
   .save-toast.show{opacity:1;transform:translateY(0);}
   .save-toast.error{background:var(--negative);}
+
+  .readonly-hint{font-size:12px;color:var(--warn);background:var(--warn-bg);padding:6px 10px;border-radius:3px;margin-bottom:12px;display:inline-block;}
 
   @media (max-width:760px){
     .layout{flex-direction:column;}
@@ -137,7 +152,7 @@
         <label for="login-password">Contrasenya</label>
         <input type="password" id="login-password" required autocomplete="current-password">
       </div>
-      <button type="submit" class="btn-primary" id="login-btn">Entrar</button>
+      <button type="submit" class="btn-primary" id="login-btn" style="width:100%;margin-top:8px;">Entrar</button>
       <div class="login-error" id="login-error"></div>
     </form>
   </div>
@@ -148,6 +163,7 @@
     <div class="brand"><h1>TAC</h1><span>Gestió econòmica</span></div>
     <div class="who">
       <span id="user-email"></span>
+      <span class="role-badge" id="user-role"></span>
       <button class="btn-ghost" id="logout-btn">Tancar sessió</button>
     </div>
   </div>
@@ -164,11 +180,12 @@
   "use strict";
 
   const SUPABASE_URL = 'https://mdcoxadgfvgvjziilszg.supabase.co';
- const SUPABASE_KEY = 'sb_publishable_w36LYKErZZc8sL1gPLbKAQ_jMeXlpH5';
+  const SUPABASE_KEY = 'sb_publishable_w36LYKErZZc8sL1gPLbKAQ_jMeXlpH5';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes"};
+  const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes", notes:"Notes"};
   const YEARS = [2026, 2025, 2024];
+  const QUOTA_TAC = 60, QUOTA_AMICS = 10;
 
   // Dades originals de l'Excel — només s'utilitzen per inicialitzar la base de dades la primera vegada
   const SEED_DATA = {
@@ -241,10 +258,14 @@
     }
   };
 
-  let DATA = null;   // { 2026: {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]}, ... }
+  let DATA = null;
   let currentYear = 2026;
   let currentSection = "ingressos";
   let currentUser = null;
+  let MY_ROLE = 'viewer';
+  let NOTES = [];
+
+  const isAdmin = () => MY_ROLE === 'admin';
 
   // ---------- TOAST ----------
   let toastTimer;
@@ -260,6 +281,11 @@
   // ---------- HELPERS ----------
   const fmt = n => (Math.round((+n||0)*100)/100).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
   const sum = (arr, key) => arr.reduce((a,b)=>a+(+b[key]||0),0);
+
+  function formatDate(iso){
+    const d = new Date(iso);
+    return d.toLocaleString("ca-ES", {day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  }
 
   // ---------- AUTH ----------
   function showLoading(){
@@ -277,6 +303,9 @@
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("app").style.display = "block";
     document.getElementById("user-email").textContent = currentUser ? currentUser.email : "";
+    const badge = document.getElementById("user-role");
+    badge.textContent = isAdmin() ? "Admin" : "Consulta";
+    badge.classList.toggle("admin", isAdmin());
   }
 
   document.getElementById("login-form").addEventListener("submit", async (e)=>{
@@ -290,7 +319,8 @@
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     btn.disabled = false; btn.textContent = "Entrar";
     if(error){
-      errBox.textContent = "Credencials incorrectes o error de connexió.";
+      errBox.textContent = "Error: " + error.message;
+      console.error("Login error:", error);
       return;
     }
     currentUser = data.user;
@@ -301,6 +331,8 @@
     await sb.auth.signOut();
     currentUser = null;
     DATA = null;
+    MY_ROLE = 'viewer';
+    NOTES = [];
     document.getElementById("login-password").value = "";
     showLogin();
   });
@@ -356,11 +388,20 @@
     if(e2) throw e2;
   }
 
+  async function loadNotes(){
+    const { data, error } = await sb.from("notes").select("*").order("created_at", {ascending:false});
+    if(error){ console.error(error); NOTES = []; return; }
+    NOTES = data || [];
+  }
+
   async function bootApp(){
     showLoading();
     try{
       await seedIfEmpty();
       DATA = await fetchAll();
+      const { data: prof } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
+      MY_ROLE = (prof && prof.role) || 'viewer';
+      await loadNotes();
       showApp();
       renderAll();
     }catch(err){
@@ -406,27 +447,45 @@
     main.innerHTML = "";
     const header = document.createElement("div");
     header.className = "content-header";
-    header.innerHTML = '<h2>'+SECTION_LABELS[currentSection]+' '+currentYear+'</h2>'+
-      '<span class="desc">Els canvis es desen automàticament al servidor.</span>';
+    const sectionLabel = SECTION_LABELS[currentSection];
+    const title = currentSection === "notes" ? sectionLabel : (sectionLabel + " " + currentYear);
+    const desc = isAdmin()
+      ? 'Els canvis es desen automàticament al servidor.'
+      : 'Mode consulta · només lectura.';
+    header.innerHTML = '<h2>'+title+'</h2><span class="desc">'+desc+'</span>';
     main.appendChild(header);
 
+    if(currentSection === "notes"){
+      main.appendChild(buildNotesPanel());
+      return;
+    }
+
     if(!DATA || !DATA[currentYear]){ main.appendChild(document.createTextNode("Sense dades.")); return; }
+
+    if(!isAdmin()){
+      const hint = document.createElement("div");
+      hint.className = "readonly-hint";
+      hint.textContent = "No tens permisos per editar. Només pots veure les dades.";
+      main.appendChild(hint);
+    }
 
     if(currentSection === "quotes") main.appendChild(buildQuotesPanel());
     else main.appendChild(buildMoneyPanel(currentSection));
   }
 
+  // ---------- MONEY PANEL ----------
   function buildMoneyPanel(kind){
     const yearData = DATA[currentYear];
     const rows = yearData[kind];
     const hasJust = kind === "despeses";
+    const editable = isAdmin();
     const panel = document.createElement("div");
     panel.className = "panel";
 
     const table = document.createElement("table");
     table.innerHTML = '<thead><tr>'+
       '<th>Concepte</th><th class="num">Previst</th><th class="num">Real</th>'+
-      (hasJust ? '<th>Justificant</th>' : '')+'<th></th></tr></thead>';
+      (hasJust ? '<th>Justificant</th>' : '')+(editable ? '<th></th>' : '')+'</tr></thead>';
     const tbody = document.createElement("tbody");
 
     rows.forEach(row=>{
@@ -434,6 +493,7 @@
       const tdC = document.createElement("td");
       const inpC = document.createElement("input");
       inpC.className = "cell-input text"; inpC.value = row.concepte;
+      inpC.disabled = !editable;
       inpC.addEventListener("change", async ()=>{
         row.concepte = inpC.value;
         const { error } = await sb.from("finances").update({concepte:row.concepte}).eq("id", row.id);
@@ -445,6 +505,7 @@
         const td = document.createElement("td"); td.className = "num";
         const inp = document.createElement("input");
         inp.className = "cell-input"; inp.type = "number"; inp.step = "0.01"; inp.value = row[f];
+        inp.disabled = !editable;
         inp.addEventListener("input", ()=>{ row[f] = parseFloat(inp.value)||0; updateTotals(kind); });
         inp.addEventListener("change", async ()=>{
           const { error } = await sb.from("finances").update({[f]:row[f]}).eq("id", row.id);
@@ -457,6 +518,7 @@
         const td = document.createElement("td");
         const inp = document.createElement("input");
         inp.className = "cell-input text"; inp.value = row.justificant || "";
+        inp.disabled = !editable;
         inp.addEventListener("change", async ()=>{
           row.justificant = inp.value;
           const { error } = await sb.from("finances").update({justificant:row.justificant}).eq("id", row.id);
@@ -465,17 +527,19 @@
         td.appendChild(inp); tr.appendChild(td);
       }
 
-      const tdX = document.createElement("td");
-      const btn = document.createElement("button");
-      btn.className = "icon-btn"; btn.textContent = "✕"; btn.title = "Eliminar fila";
-      btn.addEventListener("click", async ()=>{
-        if(!confirm("Segur que vols eliminar aquesta fila?")) return;
-        const { error } = await sb.from("finances").delete().eq("id", row.id);
-        if(error){ toast("Error eliminant", true); console.error(error); return; }
-        DATA[currentYear][kind] = rows.filter(r=>r.id!==row.id);
-        toast("Eliminat"); renderMain();
-      });
-      tdX.appendChild(btn); tr.appendChild(tdX);
+      if(editable){
+        const tdX = document.createElement("td");
+        const btn = document.createElement("button");
+        btn.className = "icon-btn"; btn.textContent = "✕"; btn.title = "Eliminar fila";
+        btn.addEventListener("click", async ()=>{
+          if(!confirm("Segur que vols eliminar aquesta fila?")) return;
+          const { error } = await sb.from("finances").delete().eq("id", row.id);
+          if(error){ toast("Error eliminant", true); console.error(error); return; }
+          DATA[currentYear][kind] = rows.filter(r=>r.id!==row.id);
+          toast("Eliminat"); renderMain();
+        });
+        tdX.appendChild(btn); tr.appendChild(tdX);
+      }
       tbody.appendChild(tr);
     });
 
@@ -484,24 +548,26 @@
     trT.innerHTML = '<td>Total</td>'+
       '<td class="num" data-total="previst">'+fmt(sum(rows,"previst"))+'</td>'+
       '<td class="num" data-total="real">'+fmt(sum(rows,"real"))+'</td>'+
-      (hasJust ? '<td></td>' : '')+'<td></td>';
+      (hasJust ? '<td></td>' : '')+(editable ? '<td></td>' : '');
     tbody.appendChild(trT);
     table.appendChild(tbody);
     panel.appendChild(table);
 
-    const add = document.createElement("button");
-    add.className = "add-row-btn"; add.textContent = "+ Afegir concepte";
-    add.addEventListener("click", async ()=>{
-      const payload = {year:currentYear, kind, concepte:"Nou concepte", previst:0, real:0};
-      if(hasJust) payload.justificant = "-";
-      const { data, error } = await sb.from("finances").insert(payload).select().single();
-      if(error){ toast("Error afegint", true); console.error(error); return; }
-      const nr = { id:data.id, concepte:data.concepte, previst:data.previst, real:data.real };
-      if(hasJust) nr.justificant = data.justificant;
-      yearData[kind].push(nr);
-      toast(); renderMain();
-    });
-    panel.appendChild(add);
+    if(editable){
+      const add = document.createElement("button");
+      add.className = "add-row-btn"; add.textContent = "+ Afegir concepte";
+      add.addEventListener("click", async ()=>{
+        const payload = {year:currentYear, kind, concepte:"Nou concepte", previst:0, real:0};
+        if(hasJust) payload.justificant = "-";
+        const { data, error } = await sb.from("finances").insert(payload).select().single();
+        if(error){ toast("Error afegint", true); console.error(error); return; }
+        const nr = { id:data.id, concepte:data.concepte, previst:data.previst, real:data.real };
+        if(hasJust) nr.justificant = data.justificant;
+        yearData[kind].push(nr);
+        toast(); renderMain();
+      });
+      panel.appendChild(add);
+    }
 
     const bal = document.createElement("div");
     bal.className = "balance-row";
@@ -528,21 +594,36 @@
     if(bal) bal.innerHTML = balanceHTML();
   }
 
+  // ---------- QUOTES PANEL ----------
   function buildQuotesPanel(){
     const d = DATA[currentYear];
+    const editable = isAdmin();
     const wrap = document.createElement("div");
-    const QUOTA_TAC = 60, QUOTA_AMICS = 10;
 
     const p1 = document.createElement("div");
     p1.className = "panel";
     p1.innerHTML = '<h3>Quotes de festivals ('+fmt(QUOTA_TAC)+' / festival)</h3>';
-    p1.appendChild(buildQuotaGrid(d.quotesTac));
+    p1.appendChild(buildQuotaGrid(d.quotesTac, "tac"));
+    if(editable){
+      const add1 = document.createElement("button");
+      add1.className = "add-row-btn";
+      add1.textContent = "+ Afegir festival";
+      add1.addEventListener("click", ()=> addQuota("tac"));
+      p1.appendChild(add1);
+    }
     wrap.appendChild(p1);
 
     const p2 = document.createElement("div");
     p2.className = "panel";
     p2.innerHTML = '<h3>Quotes Amics del TAC ('+fmt(QUOTA_AMICS)+' / festival)</h3>';
-    p2.appendChild(buildQuotaGrid(d.quotesAmics));
+    p2.appendChild(buildQuotaGrid(d.quotesAmics, "amics"));
+    if(editable){
+      const add2 = document.createElement("button");
+      add2.className = "add-row-btn";
+      add2.textContent = "+ Afegir amic";
+      add2.addEventListener("click", ()=> addQuota("amics"));
+      p2.appendChild(add2);
+    }
     wrap.appendChild(p2);
 
     const tacPaid = d.quotesTac.filter(q=>q.pagat).length;
@@ -561,26 +642,214 @@
     return wrap;
   }
 
-  function buildQuotaGrid(list){
+  async function addQuota(tipus){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+    const nom = prompt("Nom del festival o amic a afegir:");
+    if(!nom || !nom.trim()) return;
+    const { data, error } = await sb.from("quotes").insert({
+      year: currentYear,
+      tipus: tipus,
+      nom: nom.trim(),
+      pagat: false
+    }).select().single();
+    if(error){ toast("Error afegint: " + error.message, true); console.error(error); return; }
+    const listKey = tipus === "tac" ? "quotesTac" : "quotesAmics";
+    DATA[currentYear][listKey].push({ id:data.id, nom:data.nom, pagat:false });
+    toast("Afegit"); renderMain();
+  }
+
+  async function removeQuota(item, listKey){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+    if(!confirm('Segur que vols eliminar "' + item.nom + '"?')) return;
+    const { error } = await sb.from("quotes").delete().eq("id", item.id);
+    if(error){ toast("Error eliminant: " + error.message, true); console.error(error); return; }
+    DATA[currentYear][listKey] = DATA[currentYear][listKey].filter(q=>q.id !== item.id);
+    toast("Eliminat"); renderMain();
+  }
+
+  async function renameQuota(item, listKey){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+    const nou = prompt('Nou nom per "' + item.nom + '":', item.nom);
+    if(nou === null) return;
+    const trim = nou.trim();
+    if(!trim || trim === item.nom) return;
+    const { error } = await sb.from("quotes").update({nom:trim}).eq("id", item.id);
+    if(error){ toast("Error reanomenant: " + error.message, true); console.error(error); return; }
+    item.nom = trim;
+    toast("Reanomenat"); renderMain();
+  }
+
+  function buildQuotaGrid(list, tipus){
     const grid = document.createElement("div");
     grid.className = "quota-grid";
+    const listKey = tipus === "tac" ? "quotesTac" : "quotesAmics";
+    const editable = isAdmin();
     list.forEach(item=>{
-      const div = document.createElement("label");
+      const div = document.createElement("div");
       div.className = "quota-item" + (item.pagat ? " paid":"");
+
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = item.pagat;
+      cb.disabled = !editable;
       cb.addEventListener("change", async ()=>{
         item.pagat = cb.checked;
         const { error } = await sb.from("quotes").update({pagat:item.pagat}).eq("id", item.id);
         if(error){ toast("Error desant", true); console.error(error); cb.checked = !item.pagat; item.pagat = !item.pagat; return; }
         toast(); renderMain();
       });
+
       const span = document.createElement("span");
+      span.className = "quota-name" + (editable ? " editable" : "");
       span.textContent = item.nom + (item.pagat ? " ✓" : "");
-      div.appendChild(cb); div.appendChild(span);
+      span.title = item.nom + (editable ? " — clic per reanomenar" : "");
+      if(editable){
+        span.addEventListener("click", ()=>{ renameQuota(item, listKey); });
+      }
+
+      div.appendChild(cb);
+      div.appendChild(span);
+
+      if(editable){
+        const btnDel = document.createElement("button");
+        btnDel.className = "icon-btn";
+        btnDel.textContent = "✕";
+        btnDel.title = "Eliminar";
+        btnDel.addEventListener("click", ()=> removeQuota(item, listKey));
+        div.appendChild(btnDel);
+      }
+
       grid.appendChild(div);
     });
     return grid;
+  }
+
+  // ---------- NOTES PANEL ----------
+  function buildNotesPanel(){
+    const wrap = document.createElement("div");
+
+    const p1 = document.createElement("div");
+    p1.className = "panel";
+    p1.innerHTML = '<h3>Nova nota</h3>';
+
+    const ta = document.createElement("textarea");
+    ta.placeholder = "Escriu una nota...";
+    ta.style.width = "100%";
+    ta.style.minHeight = "80px";
+    ta.style.padding = "10px";
+    ta.style.border = "1px solid var(--border)";
+    ta.style.borderRadius = "3px";
+    ta.style.background = "var(--bg)";
+    ta.style.color = "var(--text)";
+    ta.style.fontSize = "14px";
+    ta.style.resize = "vertical";
+    p1.appendChild(ta);
+
+    const btnAdd = document.createElement("button");
+    btnAdd.className = "btn-primary";
+    btnAdd.style.marginTop = "10px";
+    btnAdd.textContent = "Afegir nota";
+    btnAdd.addEventListener("click", async ()=>{
+      const content = ta.value.trim();
+      if(!content){ toast("La nota està buida", true); return; }
+      btnAdd.disabled = true; btnAdd.textContent = "Desant…";
+      const { data, error } = await sb.from("notes").insert({
+        user_id: currentUser.id,
+        content: content
+      }).select().single();
+      btnAdd.disabled = false; btnAdd.textContent = "Afegir nota";
+      if(error){ toast("Error afegint nota: " + error.message, true); console.error(error); return; }
+      NOTES.unshift(data);
+      ta.value = "";
+      toast("Nota afegida");
+      renderMain();
+    });
+    p1.appendChild(btnAdd);
+    wrap.appendChild(p1);
+
+    const p2 = document.createElement("div");
+    p2.className = "panel";
+    p2.innerHTML = '<h3>Totes les notes (' + NOTES.length + ')</h3>';
+
+    if(NOTES.length === 0){
+      const empty = document.createElement("div");
+      empty.style.color = "var(--text-muted)";
+      empty.style.fontSize = "14px";
+      empty.style.padding = "10px 0";
+      empty.textContent = "Encara no hi ha cap nota.";
+      p2.appendChild(empty);
+    } else {
+      const list = document.createElement("div");
+      list.className = "notes-list";
+      NOTES.forEach(n=>{
+        const isMine = n.user_id === currentUser.id;
+        const item = document.createElement("div");
+        item.className = "note-item";
+
+        const head = document.createElement("div");
+        head.className = "note-head";
+
+        const author = document.createElement("span");
+        author.className = "note-author" + (isMine ? " mine" : "");
+        author.textContent = isMine ? "Jo" : "Un altre usuari";
+        const date = document.createElement("span");
+        date.style.marginLeft = "8px";
+        date.textContent = "· " + formatDate(n.created_at);
+
+        const authorWrap = document.createElement("span");
+        authorWrap.appendChild(author);
+        authorWrap.appendChild(date);
+        head.appendChild(authorWrap);
+
+        if(isMine){
+          const actions = document.createElement("div");
+          actions.className = "note-actions";
+
+          const btnEdit = document.createElement("button");
+          btnEdit.className = "icon-btn";
+          btnEdit.textContent = "✎";
+          btnEdit.title = "Editar nota";
+          btnEdit.addEventListener("click", async ()=>{
+            const nou = prompt("Edita la nota:", n.content);
+            if(nou === null) return;
+            const trim = nou.trim();
+            if(!trim || trim === n.content) return;
+            const { error } = await sb.from("notes")
+              .update({content: trim, updated_at: new Date().toISOString()})
+              .eq("id", n.id);
+            if(error){ toast("Error editant: " + error.message, true); console.error(error); return; }
+            n.content = trim;
+            toast("Editada"); renderMain();
+          });
+          actions.appendChild(btnEdit);
+
+          const btnDel = document.createElement("button");
+          btnDel.className = "icon-btn";
+          btnDel.textContent = "✕";
+          btnDel.title = "Eliminar nota";
+          btnDel.addEventListener("click", async ()=>{
+            if(!confirm("Segur que vols eliminar aquesta nota?")) return;
+            const { error } = await sb.from("notes").delete().eq("id", n.id);
+            if(error){ toast("Error eliminant: " + error.message, true); console.error(error); return; }
+            NOTES = NOTES.filter(x=> x.id !== n.id);
+            toast("Eliminada"); renderMain();
+          });
+          actions.appendChild(btnDel);
+
+          head.appendChild(actions);
+        }
+        item.appendChild(head);
+
+        const body = document.createElement("div");
+        body.className = "note-body";
+        body.textContent = n.content;
+        item.appendChild(body);
+
+        list.appendChild(item);
+      });
+      p2.appendChild(list);
+    }
+    wrap.appendChild(p2);
+    return wrap;
   }
 
   // ---------- BOOT ----------
