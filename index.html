@@ -126,6 +126,27 @@
 
   .readonly-hint{font-size:12px;color:var(--warn);background:var(--warn-bg);padding:6px 10px;border-radius:3px;margin-bottom:12px;display:inline-block;}
 
+  /* --- Estils per a festivals --- */
+  .festival-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+  .festival-filters label{font-size:12px;color:var(--text-muted);margin-right:4px;}
+  .festival-filters select{padding:6px 9px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--text);font-size:13px;}
+  .festival-table td.actions{white-space:nowrap;text-align:right;}
+  .festival-table .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--border);text-transform:uppercase;letter-spacing:.03em;}
+  .festival-table .badge.pendent{background:var(--warn-bg);color:var(--warn);border-color:var(--warn);}
+  .festival-table .badge.contactat{background:var(--surface-2);color:var(--text-muted);}
+  .festival-table .badge.confirmat{background:var(--positive-bg);color:var(--positive);border-color:var(--positive);}
+  .festival-table .badge.pagat{background:var(--positive);color:var(--accent-ink);border-color:var(--positive);}
+  .festival-table .badge.descartat{background:var(--negative-bg);color:var(--negative);border-color:var(--negative);}
+  .festival-table .badge.desconegut{background:transparent;color:var(--text-muted);border-style:dashed;font-style:italic;}
+  .festival-table td .pendent-info{color:var(--warn);font-style:italic;font-size:12.5px;}
+  .festival-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .festival-form .field{margin-bottom:0;}
+  .festival-form .full{grid-column:1/-1;}
+  .festival-form textarea{width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--border);border-radius:3px;background:var(--bg);color:var(--text);font-size:13.5px;resize:vertical;}
+  .festival-form-actions{display:flex;gap:10px;margin-top:14px;justify-content:flex-end;}
+  .btn-secondary{padding:10px 16px;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13.5px;font-weight:600;}
+  .btn-secondary:hover{background:var(--surface-2);}
+
   @media (max-width:760px){
     .layout{flex-direction:column;}
     nav.side{width:100%;border-right:none;border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:12px 14px;gap:18px;}
@@ -183,11 +204,12 @@
   const SUPABASE_KEY = 'sb_publishable_w36LYKErZZc8sL1gPLbKAQ_jMeXlpH5';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes", notes:"Notes"};
+  const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes", festivals:"Festivals", notes:"Notes"};
   const YEARS = [2026, 2025, 2024];
   const QUOTA_TAC = 60, QUOTA_AMICS = 10;
 
-  // Dades originals de l'Excel — només s'utilitzen per inicialitzar la base de dades la primera vegada
+  const ESTATS = ["pendent","contactat","confirmat","pagat","descartat"];
+
   const SEED_DATA = {
     2026: {
       ingressos: [
@@ -259,11 +281,16 @@
   };
 
   let DATA = null;
+  let FESTIVALS = [];
   let currentYear = 2026;
   let currentSection = "ingressos";
   let currentUser = null;
   let MY_ROLE = 'viewer';
   let NOTES = [];
+
+  let festivalFilterEstat = "tots";
+  let festivalSearch = "";
+  let editingFestivalId = null;
 
   const isAdmin = () => MY_ROLE === 'admin';
 
@@ -275,16 +302,28 @@
     t.classList.toggle("error", !!isError);
     t.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>t.classList.remove("show"), 1500);
+    toastTimer = setTimeout(()=>t.classList.remove("show"), 1800);
   }
 
   // ---------- HELPERS ----------
   const fmt = n => (Math.round((+n||0)*100)/100).toLocaleString("ca-ES",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
   const sum = (arr, key) => arr.reduce((a,b)=>a+(+b[key]||0),0);
+  const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   function formatDate(iso){
+    if(!iso) return "—";
     const d = new Date(iso);
     return d.toLocaleString("ca-ES", {day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  }
+  function formatDateShort(iso){
+    if(!iso) return "—";
+    const d = new Date(iso + "T00:00:00");
+    if(isNaN(d)) return "—";
+    return d.toLocaleDateString("ca-ES", {day:"2-digit",month:"2-digit",year:"numeric"});
+  }
+  function isEmpty(v){ return v === null || v === undefined || String(v).trim() === ""; }
+  function pendent(v, fallback){
+    return isEmpty(v) ? '<span class="pendent-info">'+(fallback||'Pendent')+'</span>' : esc(v);
   }
 
   // ---------- AUTH ----------
@@ -330,9 +369,7 @@
   document.getElementById("logout-btn").addEventListener("click", async ()=>{
     await sb.auth.signOut();
     currentUser = null;
-    DATA = null;
-    MY_ROLE = 'viewer';
-    NOTES = [];
+    DATA = null; FESTIVALS = []; MY_ROLE = 'viewer'; NOTES = [];
     document.getElementById("login-password").value = "";
     showLogin();
   });
@@ -361,6 +398,12 @@
       result[y][listKey].push({ id:r.id, nom:r.nom, pagat:!!r.pagat });
     });
     return result;
+  }
+
+  async function fetchFestivals(){
+    const { data, error } = await sb.from("festivals").select("*").order("nom", {ascending:true});
+    if(error){ console.error(error); FESTIVALS = []; return; }
+    FESTIVALS = data || [];
   }
 
   async function seedIfEmpty(){
@@ -399,6 +442,7 @@
     try{
       await seedIfEmpty();
       DATA = await fetchAll();
+      await fetchFestivals();
       const { data: prof } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
       MY_ROLE = (prof && prof.role) || 'viewer';
       await loadNotes();
@@ -448,17 +492,18 @@
     const header = document.createElement("div");
     header.className = "content-header";
     const sectionLabel = SECTION_LABELS[currentSection];
-    const title = currentSection === "notes" ? sectionLabel : (sectionLabel + " " + currentYear);
+    let title;
+    if(currentSection === "notes") title = sectionLabel;
+    else if(currentSection === "festivals") title = "Festivals · " + currentYear;
+    else title = sectionLabel + " " + currentYear;
     const desc = isAdmin()
       ? 'Els canvis es desen automàticament al servidor.'
       : 'Mode consulta · només lectura.';
     header.innerHTML = '<h2>'+title+'</h2><span class="desc">'+desc+'</span>';
     main.appendChild(header);
 
-    if(currentSection === "notes"){
-      main.appendChild(buildNotesPanel());
-      return;
-    }
+    if(currentSection === "notes"){ main.appendChild(buildNotesPanel()); return; }
+    if(currentSection === "festivals"){ main.appendChild(buildFestivalsPanel()); return; }
 
     if(!DATA || !DATA[currentYear]){ main.appendChild(document.createTextNode("Sense dades.")); return; }
 
@@ -647,10 +692,7 @@
     const nom = prompt("Nom del festival o amic a afegir:");
     if(!nom || !nom.trim()) return;
     const { data, error } = await sb.from("quotes").insert({
-      year: currentYear,
-      tipus: tipus,
-      nom: nom.trim(),
-      pagat: false
+      year: currentYear, tipus: tipus, nom: nom.trim(), pagat: false
     }).select().single();
     if(error){ toast("Error afegint: " + error.message, true); console.error(error); return; }
     const listKey = tipus === "tac" ? "quotesTac" : "quotesAmics";
@@ -687,7 +729,6 @@
     list.forEach(item=>{
       const div = document.createElement("div");
       div.className = "quota-item" + (item.pagat ? " paid":"");
-
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = item.pagat;
       cb.disabled = !editable;
@@ -697,27 +738,18 @@
         if(error){ toast("Error desant", true); console.error(error); cb.checked = !item.pagat; item.pagat = !item.pagat; return; }
         toast(); renderMain();
       });
-
       const span = document.createElement("span");
       span.className = "quota-name" + (editable ? " editable" : "");
       span.textContent = item.nom + (item.pagat ? " ✓" : "");
       span.title = item.nom + (editable ? " — clic per reanomenar" : "");
-      if(editable){
-        span.addEventListener("click", ()=>{ renameQuota(item, listKey); });
-      }
-
-      div.appendChild(cb);
-      div.appendChild(span);
-
+      if(editable){ span.addEventListener("click", ()=>{ renameQuota(item, listKey); }); }
+      div.appendChild(cb); div.appendChild(span);
       if(editable){
         const btnDel = document.createElement("button");
-        btnDel.className = "icon-btn";
-        btnDel.textContent = "✕";
-        btnDel.title = "Eliminar";
+        btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar";
         btnDel.addEventListener("click", ()=> removeQuota(item, listKey));
         div.appendChild(btnDel);
       }
-
       grid.appendChild(div);
     });
     return grid;
@@ -730,41 +762,27 @@
     const p1 = document.createElement("div");
     p1.className = "panel";
     p1.innerHTML = '<h3>Nova nota</h3>';
-
     const ta = document.createElement("textarea");
     ta.placeholder = "Escriu una nota...";
-    ta.style.width = "100%";
-    ta.style.minHeight = "80px";
-    ta.style.padding = "10px";
-    ta.style.border = "1px solid var(--border)";
-    ta.style.borderRadius = "3px";
-    ta.style.background = "var(--bg)";
-    ta.style.color = "var(--text)";
-    ta.style.fontSize = "14px";
-    ta.style.resize = "vertical";
+    ta.style.width = "100%"; ta.style.minHeight = "80px"; ta.style.padding = "10px";
+    ta.style.border = "1px solid var(--border)"; ta.style.borderRadius = "3px";
+    ta.style.background = "var(--bg)"; ta.style.color = "var(--text)";
+    ta.style.fontSize = "14px"; ta.style.resize = "vertical";
     p1.appendChild(ta);
-
     const btnAdd = document.createElement("button");
-    btnAdd.className = "btn-primary";
-    btnAdd.style.marginTop = "10px";
-    btnAdd.textContent = "Afegir nota";
+    btnAdd.className = "btn-primary"; btnAdd.style.marginTop = "10px"; btnAdd.textContent = "Afegir nota";
     btnAdd.addEventListener("click", async ()=>{
       const content = ta.value.trim();
       if(!content){ toast("La nota està buida", true); return; }
       btnAdd.disabled = true; btnAdd.textContent = "Desant…";
       const { data, error } = await sb.from("notes").insert({
-        user_id: currentUser.id,
-        content: content
+        user_id: currentUser.id, content: content
       }).select().single();
       btnAdd.disabled = false; btnAdd.textContent = "Afegir nota";
       if(error){ toast("Error afegint nota: " + error.message, true); console.error(error); return; }
-      NOTES.unshift(data);
-      ta.value = "";
-      toast("Nota afegida");
-      renderMain();
+      NOTES.unshift(data); ta.value = ""; toast("Nota afegida"); renderMain();
     });
-    p1.appendChild(btnAdd);
-    wrap.appendChild(p1);
+    p1.appendChild(btnAdd); wrap.appendChild(p1);
 
     const p2 = document.createElement("div");
     p2.className = "panel";
@@ -772,10 +790,8 @@
 
     if(NOTES.length === 0){
       const empty = document.createElement("div");
-      empty.style.color = "var(--text-muted)";
-      empty.style.fontSize = "14px";
-      empty.style.padding = "10px 0";
-      empty.textContent = "Encara no hi ha cap nota.";
+      empty.style.color = "var(--text-muted)"; empty.style.fontSize = "14px";
+      empty.style.padding = "10px 0"; empty.textContent = "Encara no hi ha cap nota.";
       p2.appendChild(empty);
     } else {
       const list = document.createElement("div");
@@ -784,30 +800,23 @@
         const isMine = n.user_id === currentUser.id;
         const item = document.createElement("div");
         item.className = "note-item";
-
         const head = document.createElement("div");
         head.className = "note-head";
-
         const author = document.createElement("span");
         author.className = "note-author" + (isMine ? " mine" : "");
         author.textContent = isMine ? "Jo" : "Un altre usuari";
         const date = document.createElement("span");
         date.style.marginLeft = "8px";
         date.textContent = "· " + formatDate(n.created_at);
-
         const authorWrap = document.createElement("span");
-        authorWrap.appendChild(author);
-        authorWrap.appendChild(date);
+        authorWrap.appendChild(author); authorWrap.appendChild(date);
         head.appendChild(authorWrap);
 
         if(isMine){
           const actions = document.createElement("div");
           actions.className = "note-actions";
-
           const btnEdit = document.createElement("button");
-          btnEdit.className = "icon-btn";
-          btnEdit.textContent = "✎";
-          btnEdit.title = "Editar nota";
+          btnEdit.className = "icon-btn"; btnEdit.textContent = "✎"; btnEdit.title = "Editar nota";
           btnEdit.addEventListener("click", async ()=>{
             const nou = prompt("Edita la nota:", n.content);
             if(nou === null) return;
@@ -817,39 +826,324 @@
               .update({content: trim, updated_at: new Date().toISOString()})
               .eq("id", n.id);
             if(error){ toast("Error editant: " + error.message, true); console.error(error); return; }
-            n.content = trim;
-            toast("Editada"); renderMain();
+            n.content = trim; toast("Editada"); renderMain();
           });
           actions.appendChild(btnEdit);
-
           const btnDel = document.createElement("button");
-          btnDel.className = "icon-btn";
-          btnDel.textContent = "✕";
-          btnDel.title = "Eliminar nota";
+          btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar nota";
           btnDel.addEventListener("click", async ()=>{
             if(!confirm("Segur que vols eliminar aquesta nota?")) return;
             const { error } = await sb.from("notes").delete().eq("id", n.id);
             if(error){ toast("Error eliminant: " + error.message, true); console.error(error); return; }
-            NOTES = NOTES.filter(x=> x.id !== n.id);
-            toast("Eliminada"); renderMain();
+            NOTES = NOTES.filter(x=> x.id !== n.id); toast("Eliminada"); renderMain();
           });
           actions.appendChild(btnDel);
-
           head.appendChild(actions);
         }
         item.appendChild(head);
-
         const body = document.createElement("div");
-        body.className = "note-body";
-        body.textContent = n.content;
+        body.className = "note-body"; body.textContent = n.content;
         item.appendChild(body);
-
         list.appendChild(item);
       });
       p2.appendChild(list);
     }
     wrap.appendChild(p2);
     return wrap;
+  }
+
+  // ==========================================================
+  // FESTIVALS — mòdul complet
+  // ==========================================================
+  function festivalsOfYear(){
+    return FESTIVALS.filter(f=> Number(f.year) === Number(currentYear));
+  }
+
+  function buildFestivalsPanel(){
+    const wrap = document.createElement("div");
+
+    if(!isAdmin()){
+      const hint = document.createElement("div");
+      hint.className = "readonly-hint";
+      hint.textContent = "No tens permisos per editar. Només pots veure els festivals.";
+      wrap.appendChild(hint);
+    }
+
+    // Filtres
+    const filters = document.createElement("div");
+    filters.className = "festival-filters";
+    const selEstat = document.createElement("select");
+    ["tots", ...ESTATS].forEach(e=>{
+      const o = document.createElement("option");
+      o.value = e; o.textContent = e === "tots" ? "Tots els estats" : e;
+      o.selected = festivalFilterEstat === e;
+      selEstat.appendChild(o);
+    });
+    selEstat.addEventListener("change", ()=>{ festivalFilterEstat = selEstat.value; renderMain(); });
+    const lbl1 = document.createElement("label"); lbl1.textContent = "Estat:"; lbl1.htmlFor="";
+    filters.appendChild(lbl1); filters.appendChild(selEstat);
+
+    const inpSearch = document.createElement("input");
+    inpSearch.type = "text"; inpSearch.placeholder = "Cercar per nom...";
+    inpSearch.value = festivalSearch;
+    inpSearch.style.padding = "6px 9px";
+    inpSearch.style.border = "1px solid var(--border)";
+    inpSearch.style.borderRadius = "3px";
+    inpSearch.style.background = "var(--bg)";
+    inpSearch.style.color = "var(--text)";
+    inpSearch.style.fontSize = "13px";
+    inpSearch.addEventListener("input", ()=>{ festivalSearch = inpSearch.value; renderMain(); });
+    const lbl2 = document.createElement("label"); lbl2.textContent = "Cercar:";
+    filters.appendChild(lbl2); filters.appendChild(inpSearch);
+
+    wrap.appendChild(filters);
+
+    // Formulari (només admin)
+    if(isAdmin()){
+      wrap.appendChild(buildFestivalForm());
+    }
+
+    // Llistat
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    const list = festivalsOfYear()
+      .filter(f=> festivalFilterEstat === "tots" || f.estat === festivalFilterEstat)
+      .filter(f=> !festivalSearch || (f.nom||"").toLowerCase().includes(festivalSearch.toLowerCase()))
+      .sort((a,b)=> (a.nom||"").localeCompare(b.nom||""));
+
+    if(list.length === 0){
+      const empty = document.createElement("div");
+      empty.style.color = "var(--text-muted)";
+      empty.style.fontSize = "14px";
+      empty.style.padding = "10px 0";
+      empty.textContent = "No hi ha festivals per a aquest filtre.";
+      panel.appendChild(empty);
+      wrap.appendChild(panel);
+      return wrap;
+    }
+
+    const table = document.createElement("table");
+    table.className = "festival-table";
+    table.innerHTML = '<thead><tr>'+
+      '<th>Nom</th><th>Ciutat</th><th>Dates</th><th>Contacte</th>'+
+      '<th class="num">Quota</th><th>Estat</th>'+
+      (isAdmin() ? '<th></th>' : '')+
+      '</tr></thead>';
+    const tbody = document.createElement("tbody");
+
+    list.forEach(f=>{
+      const tr = document.createElement("tr");
+
+      // Nom + web
+      const tdNom = document.createElement("td");
+      tdNom.innerHTML = '<div><b>'+pendent(f.nom,'Sense nom')+'</b></div>'+
+        (isEmpty(f.web) ? '<div class="pendent-info" style="font-size:11.5px;">Sense web</div>'
+          : '<div><a href="'+esc(f.web)+'" target="_blank" rel="noopener" style="font-size:11.5px;">'+esc(f.web)+'</a></div>');
+      tr.appendChild(tdNom);
+
+      // Ciutat
+      const tdCiutat = document.createElement("td");
+      tdCiutat.innerHTML = isEmpty(f.ciutat) ? '<span class="pendent-info">Pendent</span>' : esc(f.ciutat);
+      tr.appendChild(tdCiutat);
+
+      // Dates
+      const tdDates = document.createElement("td");
+      if(isEmpty(f.data_inici) && isEmpty(f.data_fi)){
+        tdDates.innerHTML = '<span class="pendent-info">Pendent</span>';
+      } else {
+        tdDates.textContent = formatDateShort(f.data_inici) + " – " + formatDateShort(f.data_fi);
+      }
+      tr.appendChild(tdDates);
+
+      // Contacte
+      const tdContacte = document.createElement("td");
+      const parts = [];
+      if(!isEmpty(f.contacte_nom)) parts.push('<div>'+esc(f.contacte_nom)+'</div>');
+      if(!isEmpty(f.contacte_email)) parts.push('<div><a href="mailto:'+esc(f.contacte_email)+'" style="font-size:11.5px;">'+esc(f.contacte_email)+'</a></div>');
+      tdContacte.innerHTML = parts.length ? parts.join("") : '<span class="pendent-info">Pendent</span>';
+      tr.appendChild(tdContacte);
+
+      // Quota
+      const tdQuota = document.createElement("td");
+      tdQuota.className = "num";
+      const imp = Number(f.quota_import) || 0;
+      tdQuota.innerHTML = fmt(imp) +
+        (f.quota_pagada
+          ? '<div style="font-size:11px;color:var(--positive);">Pagat'+(f.quota_data_pagament?' · '+formatDateShort(f.quota_data_pagament):'')+'</div>'
+          : '<div class="pendent-info" style="font-size:11px;">No pagat</div>');
+      tr.appendChild(tdQuota);
+
+      // Estat
+      const tdEstat = document.createElement("td");
+      const est = (f.estat || "pendent").toLowerCase();
+      tdEstat.innerHTML = '<span class="badge '+esc(est)+'">'+esc(est)+'</span>';
+      tr.appendChild(tdEstat);
+
+      // Accions
+      if(isAdmin()){
+        const tdAct = document.createElement("td");
+        tdAct.className = "actions";
+        const btnEdit = document.createElement("button");
+        btnEdit.className = "icon-btn"; btnEdit.textContent = "✎"; btnEdit.title = "Editar";
+        btnEdit.addEventListener("click", ()=>{ editingFestivalId = f.id; renderMain(); });
+        const btnDel = document.createElement("button");
+        btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar";
+        btnDel.style.marginLeft = "4px";
+        btnDel.addEventListener("click", ()=> removeFestival(f));
+        tdAct.appendChild(btnEdit); tdAct.appendChild(btnDel);
+        tr.appendChild(tdAct);
+      }
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    panel.appendChild(table);
+    wrap.appendChild(panel);
+    return wrap;
+  }
+
+  function buildFestivalForm(){
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    const isEdit = editingFestivalId != null;
+    const f = isEdit ? (FESTIVALS.find(x=>x.id===editingFestivalId) || {}) : {};
+
+    panel.innerHTML = '<h3>'+(isEdit?'Editar festival':'Afegir festival')+'</h3>';
+
+    const form = document.createElement("form");
+    form.className = "festival-form";
+
+    function field(label, name, type, value, full){
+      const d = document.createElement("div");
+      d.className = "field" + (full ? " full" : "");
+      const l = document.createElement("label");
+      l.textContent = label; l.htmlFor = "f_"+name;
+      const i = document.createElement("input");
+      i.id = "f_"+name; i.name = name; i.type = type || "text";
+      if(value != null) i.value = value;
+      d.appendChild(l); d.appendChild(i);
+      form.appendChild(d);
+      return i;
+    }
+
+    const nom = field("Nom *","nom","text", f.nom || "");
+    const ciutat = field("Ciutat","ciutat","text", f.ciutat || "");
+    const pais = field("País","pais","text", f.pais || "Espanya");
+    const web = field("Web","web","url", f.web || "");
+    const cNom = field("Contacte (nom)","contacte_nom","text", f.contacte_nom || "");
+    const cEmail = field("Contacte (email)","contacte_email","email", f.contacte_email || "");
+    const dIni = field("Data inici","data_inici","date", f.data_inici || "");
+    const dFi = field("Data fi","data_fi","date", f.data_fi || "");
+    const imp = field("Import quota (€)","quota_import","number", f.quota_import != null ? f.quota_import : 60);
+    imp.step = "0.01";
+
+    // Estat
+    const dEstat = document.createElement("div");
+    dEstat.className = "field";
+    dEstat.innerHTML = '<label for="f_estat">Estat</label>';
+    const selEstat = document.createElement("select");
+    selEstat.id = "f_estat";
+    ESTATS.forEach(e=>{
+      const o = document.createElement("option");
+      o.value = e; o.textContent = e;
+      o.selected = (f.estat || "pendent") === e;
+      selEstat.appendChild(o);
+    });
+    dEstat.appendChild(selEstat); form.appendChild(dEstat);
+
+    // Pagada
+    const dPag = document.createElement("div");
+    dPag.className = "field";
+    const lblPag = document.createElement("label");
+    lblPag.textContent = "Quota pagada";
+    const chkPag = document.createElement("input");
+    chkPag.type = "checkbox"; chkPag.checked = !!f.quota_pagada;
+    chkPag.style.width = "auto";
+    dPag.appendChild(lblPag); dPag.appendChild(chkPag);
+    form.appendChild(dPag);
+
+    // Data pagament
+    const dPagData = field("Data pagament","quota_data_pagament","date", f.quota_data_pagament || "");
+
+    // Notes
+    const dNotes = document.createElement("div");
+    dNotes.className = "field full";
+    dNotes.innerHTML = '<label for="f_notes">Notes</label>';
+    const taNotes = document.createElement("textarea");
+    taNotes.id = "f_notes"; taNotes.value = f.notes || "";
+    dNotes.appendChild(taNotes); form.appendChild(dNotes);
+
+    // Accions
+    const actions = document.createElement("div");
+    actions.className = "festival-form-actions full";
+
+    if(isEdit){
+      const btnCancel = document.createElement("button");
+      btnCancel.type = "button"; btnCancel.className = "btn-secondary"; btnCancel.textContent = "Cancel·lar";
+      btnCancel.addEventListener("click", ()=>{ editingFestivalId = null; renderMain(); });
+      actions.appendChild(btnCancel);
+    }
+
+    const btnSave = document.createElement("button");
+    btnSave.type = "submit"; btnSave.className = "btn-primary";
+    btnSave.textContent = isEdit ? "Desar canvis" : "Afegir festival";
+    actions.appendChild(btnSave);
+    form.appendChild(actions);
+
+    form.addEventListener("submit", async (ev)=>{
+      ev.preventDefault();
+      if(!nom.value.trim()){ toast("El nom és obligatori", true); return; }
+
+      const payload = {
+        year: currentYear,
+        nom: nom.value.trim(),
+        ciutat: ciutat.value.trim() || null,
+        pais: pais.value.trim() || null,
+        web: web.value.trim() || null,
+        contacte_nom: cNom.value.trim() || null,
+        contacte_email: cEmail.value.trim() || null,
+        data_inici: dIni.value || null,
+        data_fi: dFi.value || null,
+        quota_import: parseFloat(imp.value) || 0,
+        quota_pagada: chkPag.checked,
+        quota_data_pagament: dPagData.value || null,
+        estat: selEstat.value,
+        notes: taNotes.value.trim() || null,
+        updated_at: new Date().toISOString()
+      };
+
+      btnSave.disabled = true; btnSave.textContent = "Desant…";
+
+      if(isEdit){
+        const { error } = await sb.from("festivals").update(payload).eq("id", editingFestivalId);
+        btnSave.disabled = false; btnSave.textContent = "Desar canvis";
+        if(error){ toast("Error desant: " + error.message, true); console.error(error); return; }
+        toast("Festival actualitzat");
+        editingFestivalId = null;
+      } else {
+        const { error } = await sb.from("festivals").insert(payload);
+        btnSave.disabled = false; btnSave.textContent = "Afegir festival";
+        if(error){ toast("Error afegint: " + error.message, true); console.error(error); return; }
+        toast("Festival afegit");
+      }
+
+      await fetchFestivals();
+      renderMain();
+    });
+
+    panel.appendChild(form);
+    return panel;
+  }
+
+  async function removeFestival(f){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+    if(!confirm('Segur que vols eliminar "' + (f.nom||"aquest festival") + '"?')) return;
+    const { error } = await sb.from("festivals").delete().eq("id", f.id);
+    if(error){ toast("Error eliminant: " + error.message, true); console.error(error); return; }
+    FESTIVALS = FESTIVALS.filter(x=>x.id !== f.id);
+    if(editingFestivalId === f.id) editingFestivalId = null;
+    toast("Eliminat"); renderMain();
   }
 
   // ---------- BOOT ----------
