@@ -205,7 +205,7 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes", festivals:"Festivals", notes:"Notes"};
-  const YEARS = [2026, 2025, 2024];
+  let YEARS = [2026, 2025, 2024];
   const QUOTA_TAC = 60, QUOTA_AMICS = 10;
 
   const ESTATS = ["pendent","contactat","confirmat","pagat","descartat"];
@@ -415,6 +415,7 @@
     const quoteRows = [];
     YEARS.forEach(y=>{
       const d = SEED_DATA[y];
+      if(!d) return;
       d.ingressos.forEach(r=> finRows.push({
         year:y, kind:"ingressos", concepte:r.concepte, previst:r.previst, real:r.real, justificant:null
       }));
@@ -446,6 +447,9 @@
       const { data: prof } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
       MY_ROLE = (prof && prof.role) || 'viewer';
       await loadNotes();
+      if(YEARS.length > 0 && !YEARS.includes(currentYear)){
+        currentYear = YEARS[0];
+      }
       showApp();
       renderAll();
     }catch(err){
@@ -471,6 +475,24 @@
       b.addEventListener("click", ()=>{ currentYear = y; renderAll(); });
       gYear.appendChild(b);
     });
+    if(isAdmin()){
+      const bAdd = document.createElement("button");
+      bAdd.className = "nav-btn";
+      bAdd.style.color = "var(--accent)";
+      bAdd.textContent = "+ Afegir any";
+      bAdd.addEventListener("click", afegirAny);
+      gYear.appendChild(bAdd);
+
+      if(currentYear != null){
+        const bDel = document.createElement("button");
+        bDel.className = "nav-btn";
+        bDel.style.color = "var(--negative)";
+        bDel.style.fontSize = "12.5px";
+        bDel.textContent = "✕ Esborrar any " + currentYear;
+        bDel.addEventListener("click", esborrarAny);
+        gYear.appendChild(bDel);
+      }
+    }
     nav.appendChild(gYear);
 
     const gSec = document.createElement("div");
@@ -494,8 +516,8 @@
     const sectionLabel = SECTION_LABELS[currentSection];
     let title;
     if(currentSection === "notes") title = sectionLabel;
-    else if(currentSection === "festivals") title = "Festivals · " + currentYear;
-    else title = sectionLabel + " " + currentYear;
+    else if(currentSection === "festivals") title = "Festivals · " + (currentYear != null ? currentYear : "");
+    else title = sectionLabel + (currentYear != null ? " " + currentYear : "");
     const desc = isAdmin()
       ? 'Els canvis es desen automàticament al servidor.'
       : 'Mode consulta · només lectura.';
@@ -505,7 +527,16 @@
     if(currentSection === "notes"){ main.appendChild(buildNotesPanel()); return; }
     if(currentSection === "festivals"){ main.appendChild(buildFestivalsPanel()); return; }
 
-    if(!DATA || !DATA[currentYear]){ main.appendChild(document.createTextNode("Sense dades.")); return; }
+    if(currentYear == null || !DATA || !DATA[currentYear]){
+      const msg = document.createElement("div");
+      msg.style.color = "var(--text-muted)";
+      msg.style.fontSize = "14px";
+      msg.textContent = currentYear == null
+        ? "No hi ha cap any. Afegeix-ne un des del menú lateral."
+        : "Sense dades per a aquest any.";
+      main.appendChild(msg);
+      return;
+    }
 
     if(!isAdmin()){
       const hint = document.createElement("div");
@@ -622,6 +653,7 @@
   }
 
   function balanceHTML(){
+    if(currentYear == null || !DATA[currentYear]) return "";
     const d = DATA[currentYear];
     const bp = sum(d.ingressos,"previst") - sum(d.despeses,"previst");
     const br = sum(d.ingressos,"real") - sum(d.despeses,"real");
@@ -852,15 +884,85 @@
     return wrap;
   }
 
+  // ---------- GESTIÓ D'ANYS ----------
+  async function afegirAny(){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+    const input = prompt("Quin any vols afegir? (ex: 2027)");
+    if(input === null) return;
+    const any = parseInt(input, 10);
+    if(!any || any < 2000 || any > 2100){ toast("Any no vàlid", true); return; }
+    if(YEARS.includes(any)){ toast("Aquest any ja existeix", true); return; }
+
+    const { count, error } = await sb.from("finances")
+      .select("*", {count:"exact", head:true})
+      .eq("year", any);
+    if(error){ toast("Error comprovant: " + error.message, true); console.error(error); return; }
+    if(count > 0){
+      if(!confirm("Ja existeixen dades per a l'any " + any + " a la base de dades. Vols afegir-lo igualment al menú?")) return;
+    }
+
+    YEARS.push(any);
+    YEARS.sort((a,b)=> b - a);
+    currentYear = any;
+    if(!DATA) DATA = {};
+    if(!DATA[any]) DATA[any] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]};
+    toast("Any " + any + " afegit");
+    renderAll();
+  }
+
+  async function esborrarAny(){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+    const any = currentYear;
+    if(any == null){ toast("No hi ha cap any seleccionat", true); return; }
+    if(!confirm("ATENCIÓ: Esborraràs TOTES les dades de l'any " + any + " (finances, quotes i festivals).\n\nSegur que vols continuar?")) return;
+    if(!confirm("Confirma-ho una altra vegada: esborrar l'any " + any + " és irreversible.")) return;
+
+    toast("Esborrant l'any " + any + "…");
+    try{
+      const { error: e1 } = await sb.from("finances").delete().eq("year", any);
+      if(e1) throw e1;
+      const { error: e2 } = await sb.from("quotes").delete().eq("year", any);
+      if(e2) throw e2;
+      const { error: e3 } = await sb.from("festivals").delete().eq("year", any);
+      if(e3) throw e3;
+
+      YEARS = YEARS.filter(y => y !== any);
+      if(DATA && DATA[any]) delete DATA[any];
+      FESTIVALS = FESTIVALS.filter(f => Number(f.year) !== any);
+
+      if(YEARS.length === 0){
+        currentYear = null;
+        toast("Any esborrat. No queden anys.", true);
+      } else {
+        currentYear = YEARS[0];
+        toast("Any " + any + " esborrat");
+      }
+      renderAll();
+    }catch(err){
+      console.error(err);
+      toast("Error esborrant: " + (err.message||err), true);
+    }
+  }
+
   // ==========================================================
   // FESTIVALS — mòdul complet
   // ==========================================================
   function festivalsOfYear(){
+    if(currentYear == null) return [];
     return FESTIVALS.filter(f=> Number(f.year) === Number(currentYear));
   }
 
   function buildFestivalsPanel(){
     const wrap = document.createElement("div");
+
+    if(currentYear == null){
+      const msg = document.createElement("div");
+      msg.style.color = "var(--text-muted)";
+      msg.style.fontSize = "14px";
+      msg.textContent = "No hi ha cap any seleccionat. Afegeix-ne un des del menú lateral.";
+      wrap.appendChild(msg);
+      return wrap;
+    }
 
     if(!isAdmin()){
       const hint = document.createElement("div");
@@ -880,7 +982,7 @@
       selEstat.appendChild(o);
     });
     selEstat.addEventListener("change", ()=>{ festivalFilterEstat = selEstat.value; renderMain(); });
-    const lbl1 = document.createElement("label"); lbl1.textContent = "Estat:"; lbl1.htmlFor="";
+    const lbl1 = document.createElement("label"); lbl1.textContent = "Estat:";
     filters.appendChild(lbl1); filters.appendChild(selEstat);
 
     const inpSearch = document.createElement("input");
