@@ -205,8 +205,8 @@
   const SUPABASE_KEY = 'sb_publishable_w36LYKErZZc8sL1gPLbKAQ_jMeXlpH5';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes", festivals:"Festivals", notes:"Notes"};
-  let YEARS = []; // Ara es construeix dinàmicament
+  const SECTION_LABELS = {pressupost:"Pressupost", quotes:"Quotes", festivals:"Festivals", notes:"Notes"};
+  let YEARS = [];
   const QUOTA_TAC = 60, QUOTA_AMICS = 10;
 
   const ESTATS = ["pendent","contactat","confirmat","pagat","descartat"];
@@ -214,7 +214,7 @@
   let DATA = null;
   let FESTIVALS = [];
   let currentYear = 2026;
-  let currentSection = "ingressos";
+  let currentSection = "pressupost";
   let currentUser = null;
   let MY_ROLE = 'viewer';
   let NOTES = [];
@@ -339,7 +339,6 @@
       DATA = await fetchAll();
       await fetchFestivals();
       
-      // Construïm la llista d'anys dinàmicament
       const anysSet = new Set();
       Object.keys(DATA).forEach(y => anysSet.add(Number(y)));
       FESTIVALS.forEach(f => anysSet.add(Number(f.year)));
@@ -455,17 +454,82 @@
     }
 
     if(currentSection === "quotes") main.appendChild(buildQuotesPanel());
-    else main.appendChild(buildMoneyPanel(currentSection));
+    else if(currentSection === "pressupost") main.appendChild(buildPressupostPanel());
   }
 
-  // ---------- MONEY PANEL ----------
-  function buildMoneyPanel(kind){
+  // ---------- PRESSUPOST PANEL ----------
+  function buildPressupostPanel(){
+    const wrap = document.createElement("div");
+
+    // 1. PRIMER: Els totals (Balanços i sumatoris)
+    const d = DATA[currentYear];
+    const ingPrev = sum(d.ingressos, "previst");
+    const ingReal = sum(d.ingressos, "real");
+    const desPrev = sum(d.despeses, "previst");
+    const desReal = sum(d.despeses, "real");
+    const balPrev = ingPrev - desPrev;
+    const balReal = ingReal - desReal;
+
+    const resum = document.createElement("div");
+    resum.className = "panel";
+    resum.innerHTML = '<h3>Resum de l\'any ' + currentYear + '</h3>';
+    
+    const taulaResum = document.createElement("table");
+    taulaResum.innerHTML = `
+      <thead>
+        <tr>
+          <th></th>
+          <th class="num">Previst</th>
+          <th class="num">Real</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ingressos</td>
+          <td class="num" style="color:var(--positive);">${fmt(ingPrev)}</td>
+          <td class="num" style="color:var(--positive);">${fmt(ingReal)}</td>
+        </tr>
+        <tr>
+          <td>Despeses</td>
+          <td class="num" style="color:var(--negative);">${fmt(desPrev)}</td>
+          <td class="num" style="color:var(--negative);">${fmt(desReal)}</td>
+        </tr>
+        <tr class="total-row">
+          <td>Balanç final</td>
+          <td class="num" style="color:${balPrev >= 0 ? 'var(--positive)' : 'var(--negative)'};">${fmt(balPrev)}</td>
+          <td class="num" style="color:${balReal >= 0 ? 'var(--positive)' : 'var(--negative)'};">${fmt(balReal)}</td>
+        </tr>
+      </tbody>
+    `;
+    resum.appendChild(taulaResum);
+    wrap.appendChild(resum);
+
+    // 2. DESPRÉS: Les llistes de conceptes
+
+    // Taula d'Ingressos
+    const pIng = document.createElement("div");
+    pIng.className = "panel";
+    pIng.innerHTML = '<h3>Detall d\'Ingressos</h3>';
+    pIng.appendChild(buildMoneyTable("ingressos"));
+    wrap.appendChild(pIng);
+
+    // Taula de Despeses
+    const pDes = document.createElement("div");
+    pDes.className = "panel";
+    pDes.innerHTML = '<h3>Detall de Despeses</h3>';
+    pDes.appendChild(buildMoneyTable("despeses"));
+    wrap.appendChild(pDes);
+
+    return wrap;
+  }
+
+  function buildMoneyTable(kind){
     const yearData = DATA[currentYear];
     const rows = yearData[kind];
     const hasJust = kind === "despeses";
     const editable = isAdmin();
-    const panel = document.createElement("div");
-    panel.className = "panel";
+
+    const container = document.createElement("div");
 
     const table = document.createElement("table");
     table.innerHTML = '<thead><tr>'+
@@ -531,12 +595,12 @@
     const trT = document.createElement("tr");
     trT.className = "total-row";
     trT.innerHTML = '<td>Total</td>'+
-      '<td class="num" data-total="previst">'+fmt(sum(rows,"previst"))+'</td>'+
-      '<td class="num" data-total="real">'+fmt(sum(rows,"real"))+'</td>'+
+      '<td class="num" data-total="previst-'+kind+'">'+fmt(sum(rows,"previst"))+'</td>'+
+      '<td class="num" data-total="real-'+kind+'">'+fmt(sum(rows,"real"))+'</td>'+
       (hasJust ? '<td></td>' : '')+(editable ? '<td></td>' : '');
     tbody.appendChild(trT);
     table.appendChild(tbody);
-    panel.appendChild(table);
+    container.appendChild(table);
 
     if(editable){
       const add = document.createElement("button");
@@ -551,33 +615,45 @@
         yearData[kind].push(nr);
         toast(); renderMain();
       });
-      panel.appendChild(add);
+      container.appendChild(add);
     }
 
-    const bal = document.createElement("div");
-    bal.className = "balance-row";
-    bal.innerHTML = balanceHTML();
-    panel.appendChild(bal);
-    return panel;
-  }
-
-  function balanceHTML(){
-    if(currentYear == null || !DATA[currentYear]) return "";
-    const d = DATA[currentYear];
-    const bp = sum(d.ingressos,"previst") - sum(d.despeses,"previst");
-    const br = sum(d.ingressos,"real") - sum(d.despeses,"real");
-    return '<div class="balance-box '+(bp>=0?'pos':'neg')+'"><div class="label">Balanç previst</div><div class="value">'+fmt(bp)+'</div></div>'+
-      '<div class="balance-box '+(br>=0?'pos':'neg')+'"><div class="label">Balanç real</div><div class="value">'+fmt(br)+'</div></div>';
+    return container;
   }
 
   function updateTotals(kind){
     const rows = DATA[currentYear][kind];
-    const tp = document.querySelector('[data-total="previst"]');
-    const tr = document.querySelector('[data-total="real"]');
+    const tp = document.querySelector('[data-total="previst-'+kind+'"]');
+    const tr = document.querySelector('[data-total="real-'+kind+'"]');
     if(tp) tp.textContent = fmt(sum(rows,"previst"));
     if(tr) tr.textContent = fmt(sum(rows,"real"));
-    const bal = document.querySelector(".balance-row");
-    if(bal) bal.innerHTML = balanceHTML();
+    
+    // Actualitzar el resum de dalt
+    const d = DATA[currentYear];
+    const ingPrev = sum(d.ingressos, "previst");
+    const ingReal = sum(d.ingressos, "real");
+    const desPrev = sum(d.despeses, "previst");
+    const desReal = sum(d.despeses, "real");
+    const balPrev = ingPrev - desPrev;
+    const balReal = ingReal - desReal;
+
+    const resumTaula = document.querySelector(".panel:first-child table");
+    if(resumTaula){
+      const files = resumTaula.querySelectorAll("tbody tr");
+      if(files.length >= 3){
+        // Ingressos
+        files[0].querySelectorAll("td")[1].textContent = fmt(ingPrev);
+        files[0].querySelectorAll("td")[2].textContent = fmt(ingReal);
+        // Despeses
+        files[1].querySelectorAll("td")[1].textContent = fmt(desPrev);
+        files[1].querySelectorAll("td")[2].textContent = fmt(desReal);
+        // Balanç
+        files[2].querySelectorAll("td")[1].textContent = fmt(balPrev);
+        files[2].querySelectorAll("td")[2].textContent = fmt(balReal);
+        files[2].querySelectorAll("td")[1].style.color = balPrev >= 0 ? 'var(--positive)' : 'var(--negative)';
+        files[2].querySelectorAll("td")[2].style.color = balReal >= 0 ? 'var(--positive)' : 'var(--negative)';
+      }
+    }
   }
 
   // ---------- QUOTES PANEL ----------
