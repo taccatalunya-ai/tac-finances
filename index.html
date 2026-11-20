@@ -1,3 +1,8 @@
+Aquí tens el fitxer **`index.html` sencer** amb l'últim canvi integrat: la fila de **"Cobraments de quotes"** al resum del Pressupost ara surt destacada amb un fons diferent i una icona, per deixar clar que és un càlcul automàtic.
+
+Substitueix tot el teu fitxer per aquest:
+
+```html
 <!DOCTYPE html>
 <html lang="ca">
 <head>
@@ -461,14 +466,24 @@
   function buildPressupostPanel(){
     const wrap = document.createElement("div");
 
-    // 1. PRIMER: Els totals (Balanços i sumatoris)
+    // 1. Calcular dades
     const d = DATA[currentYear];
     const ingPrev = sum(d.ingressos, "previst");
     const ingReal = sum(d.ingressos, "real");
     const desPrev = sum(d.despeses, "previst");
     const desReal = sum(d.despeses, "real");
-    const balPrev = ingPrev - desPrev;
-    const balReal = ingReal - desReal;
+
+    // Calcular els cobraments de quotes (TAC i Amics) d'aquest any
+    const quotesAny = FESTIVALS.filter(f => f.year === currentYear);
+    const cobratQuotesPrevist = quotesAny.reduce((acc, f) => acc + (f.quota_import || 0), 0);
+    const cobratQuotesReal = quotesAny.filter(f => f.quota_pagada).reduce((acc, f) => acc + (f.quota_import || 0), 0);
+
+    // Sumar-ho als ingressos
+    const totalIngPrev = ingPrev + cobratQuotesPrevist;
+    const totalIngReal = ingReal + cobratQuotesReal;
+
+    const balPrev = totalIngPrev - desPrev;
+    const balReal = totalIngReal - desReal;
 
     const resum = document.createElement("div");
     resum.className = "panel";
@@ -485,9 +500,19 @@
       </thead>
       <tbody>
         <tr>
-          <td>Ingressos</td>
+          <td>Ingressos manuals</td>
           <td class="num" style="color:var(--positive);">${fmt(ingPrev)}</td>
           <td class="num" style="color:var(--positive);">${fmt(ingReal)}</td>
+        </tr>
+        <tr style="background:var(--surface-2); font-style:italic;">
+          <td style="color:var(--text-muted); font-size:13px;">⚙️ Cobraments de quotes (automàtic)</td>
+          <td class="num" style="color:var(--positive);">${fmt(cobratQuotesPrevist)}</td>
+          <td class="num" style="color:var(--positive);">${fmt(cobratQuotesReal)}</td>
+        </tr>
+        <tr class="total-row">
+          <td>Total Ingressos</td>
+          <td class="num" style="color:var(--positive);">${fmt(totalIngPrev)}</td>
+          <td class="num" style="color:var(--positive);">${fmt(totalIngReal)}</td>
         </tr>
         <tr>
           <td>Despeses</td>
@@ -504,16 +529,14 @@
     resum.appendChild(taulaResum);
     wrap.appendChild(resum);
 
-    // 2. DESPRÉS: Les llistes de conceptes
+    // 2. DESPRÉS: Les llistes de conceptes manuals
 
-    // Taula d'Ingressos
     const pIng = document.createElement("div");
     pIng.className = "panel";
-    pIng.innerHTML = '<h3>Detall d\'Ingressos</h3>';
+    pIng.innerHTML = '<h3>Detall d\'Ingressos manuals</h3>';
     pIng.appendChild(buildMoneyTable("ingressos"));
     wrap.appendChild(pIng);
 
-    // Taula de Despeses
     const pDes = document.createElement("div");
     pDes.className = "panel";
     pDes.innerHTML = '<h3>Detall de Despeses</h3>';
@@ -634,24 +657,37 @@
     const ingReal = sum(d.ingressos, "real");
     const desPrev = sum(d.despeses, "previst");
     const desReal = sum(d.despeses, "real");
-    const balPrev = ingPrev - desPrev;
-    const balReal = ingReal - desReal;
+    
+    const quotesAny = FESTIVALS.filter(f => f.year === currentYear);
+    const cobratQuotesPrevist = quotesAny.reduce((acc, f) => acc + (f.quota_import || 0), 0);
+    const cobratQuotesReal = quotesAny.filter(f => f.quota_pagada).reduce((acc, f) => acc + (f.quota_import || 0), 0);
+
+    const totalIngPrev = ingPrev + cobratQuotesPrevist;
+    const totalIngReal = ingReal + cobratQuotesReal;
+    const balPrev = totalIngPrev - desPrev;
+    const balReal = totalIngReal - desReal;
 
     const resumTaula = document.querySelector(".panel:first-child table");
     if(resumTaula){
       const files = resumTaula.querySelectorAll("tbody tr");
-      if(files.length >= 3){
-        // Ingressos
+      if(files.length >= 5){
+        // Ingressos manuals
         files[0].querySelectorAll("td")[1].textContent = fmt(ingPrev);
         files[0].querySelectorAll("td")[2].textContent = fmt(ingReal);
+        // Cobraments quotes
+        files[1].querySelectorAll("td")[1].textContent = fmt(cobratQuotesPrevist);
+        files[1].querySelectorAll("td")[2].textContent = fmt(cobratQuotesReal);
+        // Total Ingressos
+        files[2].querySelectorAll("td")[1].textContent = fmt(totalIngPrev);
+        files[2].querySelectorAll("td")[2].textContent = fmt(totalIngReal);
         // Despeses
-        files[1].querySelectorAll("td")[1].textContent = fmt(desPrev);
-        files[1].querySelectorAll("td")[2].textContent = fmt(desReal);
+        files[3].querySelectorAll("td")[1].textContent = fmt(desPrev);
+        files[3].querySelectorAll("td")[2].textContent = fmt(desReal);
         // Balanç
-        files[2].querySelectorAll("td")[1].textContent = fmt(balPrev);
-        files[2].querySelectorAll("td")[2].textContent = fmt(balReal);
-        files[2].querySelectorAll("td")[1].style.color = balPrev >= 0 ? 'var(--positive)' : 'var(--negative)';
-        files[2].querySelectorAll("td")[2].style.color = balReal >= 0 ? 'var(--positive)' : 'var(--negative)';
+        files[4].querySelectorAll("td")[1].textContent = fmt(balPrev);
+        files[4].querySelectorAll("td")[2].textContent = fmt(balReal);
+        files[4].querySelectorAll("td")[1].style.color = balPrev >= 0 ? 'var(--positive)' : 'var(--negative)';
+        files[4].querySelectorAll("td")[2].style.color = balReal >= 0 ? 'var(--positive)' : 'var(--negative)';
       }
     }
   }
