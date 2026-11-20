@@ -109,6 +109,7 @@
 
   .icon-btn{background:none;border:1px solid var(--border);border-radius:3px;width:26px;height:26px;color:var(--text-muted);font-size:14px;line-height:1;padding:0;}
   .icon-btn:hover{color:var(--negative);border-color:var(--negative);}
+  .icon-btn.move-btn:hover{color:var(--accent);border-color:var(--accent);}
   .add-row-btn{margin-top:10px;background:none;border:1px dashed var(--border);color:var(--text-muted);padding:7px 12px;border-radius:3px;font-size:13px;}
   .add-row-btn:hover{color:var(--text);border-color:var(--text);}
 
@@ -210,76 +211,6 @@
 
   const ESTATS = ["pendent","contactat","confirmat","pagat","descartat"];
 
-  const SEED_DATA = {
-    2026: {
-      ingressos: [
-        {concepte:"Romanent 2025", previst:506.24, real:506.24},
-        {concepte:"16 Quotes Festivals", previst:960, real:300},
-        {concepte:"6 Quotes festivals amics", previst:60, real:0},
-        {concepte:"Xerrada Festival 42", previst:145, real:0},
-        {concepte:"Quotes pendents 2025", previst:300, real:180}
-      ],
-      despeses: [
-        {concepte:"Confecció premis", previst:250, real:0, justificant:"-"},
-        {concepte:"Dinar TAC 2025", previst:250, real:141.6, justificant:"Factura"},
-        {concepte:"8 habitacions dobles", previst:448, real:0, justificant:"-"},
-        {concepte:"Rollup 2 x 2,06", previst:100, real:105, justificant:"Factura"},
-        {concepte:"Comissions banc", previst:55, real:35, justificant:"Rebut"},
-        {concepte:"WEB", previst:250, real:0, justificant:"-"},
-        {concepte:"Google", previst:0, real:0, justificant:"-"}
-      ],
-      quotesTac:["SABADELL","GALACTICAT","CRYPTSHOW","INFEST","FANT BOI","FANTOSFREAK","FANGOFEST",
-        "B-RETINA","BARCELONA FANTASY","CARDOTERROR","TERRORMOLINS","BAI DE FEST","ACOCOLLONA'T","WALLPURGIS QUEER",
-        "SANG CELONI","TABACA FILM FEST"].map(n=>({nom:n,
-          pagat:["CRYPTSHOW","INFEST","CARDOTERROR","BAI DE FEST","ACOCOLLONA'T"].includes(n)})),
-      quotesAmics:["MONSTRUITO","FASCURT","MABUSE","GFFF","Curtas de Galícia","CutreCon"].map(n=>({nom:n,pagat:false}))
-    },
-    2025: {
-      ingressos: [
-        {concepte:"Romanent 2024", previst:396.23, real:396.23},
-        {concepte:"16 Quotes Festivals", previst:960, real:780},
-        {concepte:"6 Quotes festivals amics", previst:60, real:30},
-        {concepte:"Xerrada Festival 42", previst:145, real:0}
-      ],
-      despeses: [
-        {concepte:"Confecció premis", previst:250, real:200, justificant:"-"},
-        {concepte:"Dinar per 5 directors + 3 jurat", previst:250, real:0, justificant:"-"},
-        {concepte:"8 habitacions dobles", previst:448, real:0, justificant:"-"},
-        {concepte:"Rollup 2 x 2,06", previst:100, real:245, justificant:"Factura"},
-        {concepte:"Comissions banc", previst:55, real:55, justificant:"Rebut"},
-        {concepte:"WEB", previst:250, real:0, justificant:"-"},
-        {concepte:"Google", previst:0, real:19.99, justificant:"-"}
-      ],
-      quotesTac:["SABADELL","GALACTICAT","CRYPTSHOW","INFEST","FANT BOI","FANTOSFREAK","FANGOFEST",
-        "B-RETINA","BARCELONA FANTASY","CARDOTERROR","TERRORMOLINS","BAI DE FEST","ACOCOLLONA'T","SANG CELONI",
-        "WALLPURGIS","Fantàstik Granollers"].map(n=>({nom:n,
-          pagat:!["GALACTICAT","B-RETINA","Fantàstik Granollers"].includes(n)})),
-      quotesAmics:["MONSTRUITO","FASCURT","MABUSE","GFFF","Curtas de Galícia","CutreCon"].map(n=>({nom:n,
-        pagat:["MONSTRUITO","FASCURT","Curtas de Galícia"].includes(n)}))
-    },
-    2024: {
-      ingressos: [
-        {concepte:"Remenent 2023", previst:381.34, real:535.42},
-        {concepte:"Quotes 14 Festivals", previst:840, real:830},
-        {concepte:"Quotes festivals amics", previst:40, real:40},
-        {concepte:"Ajust caixa", previst:0, real:47}
-      ],
-      despeses: [
-        {concepte:"Confecció premis", previst:250, real:250, justificant:"Altre"},
-        {concepte:"Dinar per 5 directors + 3 jurat", previst:250, real:250, justificant:"Altre"},
-        {concepte:"8 habitacions dobles", previst:448, real:345, justificant:"Rebut"},
-        {concepte:"Rollup 2 x 2,06", previst:85, real:120, justificant:"Factura"},
-        {concepte:"Comissions banc", previst:60, real:72, justificant:"Rebut"},
-        {concepte:"Compte premium Vimeo", previst:85, real:19.19, justificant:"Altre"},
-        {concepte:"Ajust caixa", previst:0, real:0, justificant:"Altre"}
-      ],
-      quotesTac:["SABADELL","GALACTICAT","CRYPTSHOW","INFEST","FANT BOI","FANTÀSTIK GRANOLLERS","ACOCOLLONA'T",
-        "FANTOSFREAK","FANGOFEST","B-RETINA","BARCELONA FANTASY","CARDOTERROR","TERRORMOLINS","BAI DE FEST"]
-        .map(n=>({nom:n, pagat:true})),
-      quotesAmics:["MONSTRUITO","FASCURT","MABUSE","GFFF"].map(n=>({nom:n,pagat:true}))
-    }
-  };
-
   let DATA = null;
   let FESTIVALS = [];
   let currentYear = 2026;
@@ -374,62 +305,28 @@
     showLogin();
   });
 
-  // ---------- DATA LOAD / SEED ----------
+  // ---------- DATA LOAD ----------
   async function fetchAll(){
     const { data, error } = await sb.from("finances").select("*");
     if(error) throw error;
-    const { data: quotes, error: e2 } = await sb.from("quotes").select("*");
-    if(e2) throw e2;
 
     const result = {};
-    YEARS.forEach(y=>{ result[y] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]}; });
+    YEARS.forEach(y=>{ result[y] = {ingressos:[], despeses:[]}; });
 
     (data||[]).forEach(r=>{
       const y = r.year;
-      if(!result[y]) result[y] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]};
+      if(!result[y]) result[y] = {ingressos:[], despeses:[]};
       const item = { id:r.id, concepte:r.concepte, previst:Number(r.previst)||0, real:Number(r.real)||0 };
       if(r.kind === "despeses") item.justificant = r.justificant || "-";
       result[y][r.kind].push(item);
-    });
-    (quotes||[]).forEach(r=>{
-      const y = r.year;
-      if(!result[y]) result[y] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]};
-      const listKey = r.tipus === "tac" ? "quotesTac" : "quotesAmics";
-      result[y][listKey].push({ id:r.id, nom:r.nom, pagat:!!r.pagat });
     });
     return result;
   }
 
   async function fetchFestivals(){
-    const { data, error } = await sb.from("festivals").select("*").order("nom", {ascending:true});
+    const { data, error } = await sb.from("festivals").select("*").order("ordre", {ascending:true});
     if(error){ console.error(error); FESTIVALS = []; return; }
     FESTIVALS = data || [];
-  }
-
-  async function seedIfEmpty(){
-    const { count, error } = await sb.from("finances").select("*", {count:"exact", head:true});
-    if(error) throw error;
-    if(count > 0) return;
-
-    const finRows = [];
-    const quoteRows = [];
-    YEARS.forEach(y=>{
-      const d = SEED_DATA[y];
-      if(!d) return;
-      d.ingressos.forEach(r=> finRows.push({
-        year:y, kind:"ingressos", concepte:r.concepte, previst:r.previst, real:r.real, justificant:null
-      }));
-      d.despeses.forEach(r=> finRows.push({
-        year:y, kind:"despeses", concepte:r.concepte, previst:r.previst, real:r.real, justificant:r.justificant||"-"
-      }));
-      d.quotesTac.forEach(q=> quoteRows.push({ year:y, tipus:"tac", nom:q.nom, pagat:q.pagat }));
-      d.quotesAmics.forEach(q=> quoteRows.push({ year:y, tipus:"amics", nom:q.nom, pagat:q.pagat }));
-    });
-
-    const { error:e1 } = await sb.from("finances").insert(finRows);
-    if(e1) throw e1;
-    const { error:e2 } = await sb.from("quotes").insert(quoteRows);
-    if(e2) throw e2;
   }
 
   async function loadNotes(){
@@ -441,7 +338,6 @@
   async function bootApp(){
     showLoading();
     try{
-      await seedIfEmpty();
       DATA = await fetchAll();
       await fetchFestivals();
       const { data: prof } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
@@ -673,40 +569,42 @@
 
   // ---------- QUOTES PANEL ----------
   function buildQuotesPanel(){
-    const d = DATA[currentYear];
     const editable = isAdmin();
     const wrap = document.createElement("div");
 
+    const llistaTac = FESTIVALS.filter(f => f.year === currentYear && f.tipus === 'tac').sort((a,b)=>a.ordre - b.ordre);
+    const llistaAmics = FESTIVALS.filter(f => f.year === currentYear && f.tipus === 'amics').sort((a,b)=>a.ordre - b.ordre);
+
     const p1 = document.createElement("div");
     p1.className = "panel";
-    p1.innerHTML = '<h3>Quotes de festivals ('+fmt(QUOTA_TAC)+' / festival)</h3>';
-    p1.appendChild(buildQuotaGrid(d.quotesTac, "tac"));
+    p1.innerHTML = '<h3>Quotes de festivals TAC ('+fmt(QUOTA_TAC)+' / festival)</h3>';
+    p1.appendChild(buildQuotaGrid(llistaTac, "tac"));
     if(editable){
       const add1 = document.createElement("button");
       add1.className = "add-row-btn";
-      add1.textContent = "+ Afegir festival";
-      add1.addEventListener("click", ()=> addQuota("tac"));
+      add1.textContent = "+ Afegir festival TAC";
+      add1.addEventListener("click", ()=> afegirFestivalRapid("tac"));
       p1.appendChild(add1);
     }
     wrap.appendChild(p1);
 
     const p2 = document.createElement("div");
     p2.className = "panel";
-    p2.innerHTML = '<h3>Quotes Amics del TAC ('+fmt(QUOTA_AMICS)+' / festival)</h3>';
-    p2.appendChild(buildQuotaGrid(d.quotesAmics, "amics"));
+    p2.innerHTML = '<h3>Quotes Amics del TAC ('+fmt(QUOTA_AMICS)+' / amic)</h3>';
+    p2.appendChild(buildQuotaGrid(llistaAmics, "amics"));
     if(editable){
       const add2 = document.createElement("button");
       add2.className = "add-row-btn";
       add2.textContent = "+ Afegir amic";
-      add2.addEventListener("click", ()=> addQuota("amics"));
+      add2.addEventListener("click", ()=> afegirFestivalRapid("amics"));
       p2.appendChild(add2);
     }
     wrap.appendChild(p2);
 
-    const tacPaid = d.quotesTac.filter(q=>q.pagat).length;
-    const amPaid = d.quotesAmics.filter(q=>q.pagat).length;
+    const tacPaid = llistaTac.filter(q=>q.quota_pagada).length;
+    const amPaid = llistaAmics.filter(q=>q.quota_pagada).length;
     const cobrat = tacPaid*QUOTA_TAC + amPaid*QUOTA_AMICS;
-    const falta = (d.quotesTac.length-tacPaid)*QUOTA_TAC + (d.quotesAmics.length-amPaid)*QUOTA_AMICS;
+    const falta = (llistaTac.length-tacPaid)*QUOTA_TAC + (llistaAmics.length-amPaid)*QUOTA_AMICS;
 
     const p3 = document.createElement("div");
     p3.className = "panel";
@@ -719,69 +617,56 @@
     return wrap;
   }
 
-  async function addQuota(tipus){
+  async function afegirFestivalRapid(tipus){
     if(!isAdmin()){ toast("No tens permisos", true); return; }
-    const nom = prompt("Nom del festival o amic a afegir:");
+    const nom = prompt("Nom del festival a afegir:");
     if(!nom || !nom.trim()) return;
-    const { data, error } = await sb.from("quotes").insert({
-      year: currentYear, tipus: tipus, nom: nom.trim(), pagat: false
+    
+    const existents = FESTIVALS.filter(f => f.year === currentYear && f.tipus === tipus);
+    const maxOrdre = existents.length > 0 ? Math.max(...existents.map(f=>f.ordre)) : -1;
+
+    const { data, error } = await sb.from("festivals").insert({
+      year: currentYear, 
+      nom: nom.trim(), 
+      tipus: tipus,
+      ordre: maxOrdre + 1,
+      quota_import: tipus === 'tac' ? QUOTA_TAC : QUOTA_AMICS,
+      quota_pagada: false,
+      estat: 'pendent'
     }).select().single();
+    
     if(error){ toast("Error afegint: " + error.message, true); console.error(error); return; }
-    const listKey = tipus === "tac" ? "quotesTac" : "quotesAmics";
-    DATA[currentYear][listKey].push({ id:data.id, nom:data.nom, pagat:false });
+    FESTIVALS.push(data);
     toast("Afegit"); renderMain();
-  }
-
-  async function removeQuota(item, listKey){
-    if(!isAdmin()){ toast("No tens permisos", true); return; }
-    if(!confirm('Segur que vols eliminar "' + item.nom + '"?')) return;
-    const { error } = await sb.from("quotes").delete().eq("id", item.id);
-    if(error){ toast("Error eliminant: " + error.message, true); console.error(error); return; }
-    DATA[currentYear][listKey] = DATA[currentYear][listKey].filter(q=>q.id !== item.id);
-    toast("Eliminat"); renderMain();
-  }
-
-  async function renameQuota(item, listKey){
-    if(!isAdmin()){ toast("No tens permisos", true); return; }
-    const nou = prompt('Nou nom per "' + item.nom + '":', item.nom);
-    if(nou === null) return;
-    const trim = nou.trim();
-    if(!trim || trim === item.nom) return;
-    const { error } = await sb.from("quotes").update({nom:trim}).eq("id", item.id);
-    if(error){ toast("Error reanomenant: " + error.message, true); console.error(error); return; }
-    item.nom = trim;
-    toast("Reanomenat"); renderMain();
   }
 
   function buildQuotaGrid(list, tipus){
     const grid = document.createElement("div");
     grid.className = "quota-grid";
-    const listKey = tipus === "tac" ? "quotesTac" : "quotesAmics";
     const editable = isAdmin();
+    
+    if(list.length === 0){
+      grid.innerHTML = '<div style="font-size:13.5px;color:var(--text-muted);padding:10px 0;">No hi ha festivals.</div>';
+      return grid;
+    }
+
     list.forEach(item=>{
       const div = document.createElement("div");
-      div.className = "quota-item" + (item.pagat ? " paid":"");
+      div.className = "quota-item" + (item.quota_pagada ? " paid":"");
       const cb = document.createElement("input");
-      cb.type = "checkbox"; cb.checked = item.pagat;
+      cb.type = "checkbox"; cb.checked = item.quota_pagada;
       cb.disabled = !editable;
       cb.addEventListener("change", async ()=>{
-        item.pagat = cb.checked;
-        const { error } = await sb.from("quotes").update({pagat:item.pagat}).eq("id", item.id);
-        if(error){ toast("Error desant", true); console.error(error); cb.checked = !item.pagat; item.pagat = !item.pagat; return; }
+        item.quota_pagada = cb.checked;
+        const { error } = await sb.from("festivals").update({quota_pagada:item.quota_pagada}).eq("id", item.id);
+        if(error){ toast("Error desant", true); console.error(error); cb.checked = !item.quota_pagada; item.quota_pagada = !item.quota_pagada; return; }
         toast(); renderMain();
       });
       const span = document.createElement("span");
-      span.className = "quota-name" + (editable ? " editable" : "");
-      span.textContent = item.nom + (item.pagat ? " ✓" : "");
-      span.title = item.nom + (editable ? " — clic per reanomenar" : "");
-      if(editable){ span.addEventListener("click", ()=>{ renameQuota(item, listKey); }); }
+      span.className = "quota-name";
+      span.textContent = item.nom + (item.quota_pagada ? " ✓" : "");
+      span.title = item.nom;
       div.appendChild(cb); div.appendChild(span);
-      if(editable){
-        const btnDel = document.createElement("button");
-        btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar";
-        btnDel.addEventListener("click", ()=> removeQuota(item, listKey));
-        div.appendChild(btnDel);
-      }
       grid.appendChild(div);
     });
     return grid;
@@ -893,19 +778,11 @@
     if(!any || any < 2000 || any > 2100){ toast("Any no vàlid", true); return; }
     if(YEARS.includes(any)){ toast("Aquest any ja existeix", true); return; }
 
-    const { count, error } = await sb.from("finances")
-      .select("*", {count:"exact", head:true})
-      .eq("year", any);
-    if(error){ toast("Error comprovant: " + error.message, true); console.error(error); return; }
-    if(count > 0){
-      if(!confirm("Ja existeixen dades per a l'any " + any + " a la base de dades. Vols afegir-lo igualment al menú?")) return;
-    }
-
     YEARS.push(any);
     YEARS.sort((a,b)=> b - a);
     currentYear = any;
     if(!DATA) DATA = {};
-    if(!DATA[any]) DATA[any] = {ingressos:[], despeses:[], quotesTac:[], quotesAmics:[]};
+    if(!DATA[any]) DATA[any] = {ingressos:[], despeses:[]};
     toast("Any " + any + " afegit");
     renderAll();
   }
@@ -921,10 +798,8 @@
     try{
       const { error: e1 } = await sb.from("finances").delete().eq("year", any);
       if(e1) throw e1;
-      const { error: e2 } = await sb.from("quotes").delete().eq("year", any);
+      const { error: e2 } = await sb.from("festivals").delete().eq("year", any);
       if(e2) throw e2;
-      const { error: e3 } = await sb.from("festivals").delete().eq("year", any);
-      if(e3) throw e3;
 
       YEARS = YEARS.filter(y => y !== any);
       if(DATA && DATA[any]) delete DATA[any];
@@ -1011,7 +886,10 @@
     const list = festivalsOfYear()
       .filter(f=> festivalFilterEstat === "tots" || f.estat === festivalFilterEstat)
       .filter(f=> !festivalSearch || (f.nom||"").toLowerCase().includes(festivalSearch.toLowerCase()))
-      .sort((a,b)=> (a.nom||"").localeCompare(b.nom||""));
+      .sort((a,b)=> {
+        if(a.tipus !== b.tipus) return a.tipus.localeCompare(b.tipus);
+        return a.ordre - b.ordre;
+      });
 
     if(list.length === 0){
       const empty = document.createElement("div");
@@ -1027,7 +905,7 @@
     const table = document.createElement("table");
     table.className = "festival-table";
     table.innerHTML = '<thead><tr>'+
-      '<th>Nom</th><th>Ciutat</th><th>Dates</th><th>Contacte</th>'+
+      '<th>Nom</th><th>Tipus</th><th>Ciutat</th><th>Dates</th><th>Contacte</th>'+
       '<th class="num">Quota</th><th>Estat</th>'+
       (isAdmin() ? '<th></th>' : '')+
       '</tr></thead>';
@@ -1042,6 +920,11 @@
         (isEmpty(f.web) ? '<div class="pendent-info" style="font-size:11.5px;">Sense web</div>'
           : '<div><a href="'+esc(f.web)+'" target="_blank" rel="noopener" style="font-size:11.5px;">'+esc(f.web)+'</a></div>');
       tr.appendChild(tdNom);
+
+      // Tipus
+      const tdTipus = document.createElement("td");
+      tdTipus.innerHTML = '<span class="badge '+esc(f.tipus)+'">'+esc(f.tipus)+'</span>';
+      tr.appendChild(tdTipus);
 
       // Ciutat
       const tdCiutat = document.createElement("td");
@@ -1085,13 +968,27 @@
       if(isAdmin()){
         const tdAct = document.createElement("td");
         tdAct.className = "actions";
+        
+        const btnUp = document.createElement("button");
+        btnUp.className = "icon-btn move-btn"; btnUp.innerHTML = "↑"; btnUp.title = "Pujar";
+        btnUp.style.marginRight = "4px";
+        btnUp.addEventListener("click", ()=> moureFestival(f, -1));
+        
+        const btnDown = document.createElement("button");
+        btnDown.className = "icon-btn move-btn"; btnDown.innerHTML = "↓"; btnDown.title = "Baixar";
+        btnDown.style.marginRight = "4px";
+        btnDown.addEventListener("click", ()=> moureFestival(f, 1));
+
         const btnEdit = document.createElement("button");
         btnEdit.className = "icon-btn"; btnEdit.textContent = "✎"; btnEdit.title = "Editar";
+        btnEdit.style.marginRight = "4px";
         btnEdit.addEventListener("click", ()=>{ editingFestivalId = f.id; renderMain(); });
+        
         const btnDel = document.createElement("button");
         btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar";
-        btnDel.style.marginLeft = "4px";
         btnDel.addEventListener("click", ()=> removeFestival(f));
+        
+        tdAct.appendChild(btnUp); tdAct.appendChild(btnDown);
         tdAct.appendChild(btnEdit); tdAct.appendChild(btnDel);
         tr.appendChild(tdAct);
       }
@@ -1103,6 +1000,31 @@
     panel.appendChild(table);
     wrap.appendChild(panel);
     return wrap;
+  }
+
+  async function moureFestival(f, direccio){
+    if(!isAdmin()) return;
+    const mateixTipus = FESTIVALS
+      .filter(x => x.year === f.year && x.tipus === f.tipus)
+      .sort((a,b) => a.ordre - b.ordre);
+      
+    const index = mateixTipus.findIndex(x => x.id === f.id);
+    if(index === -1) return;
+    
+    const nouIndex = index + direccio;
+    if(nouIndex < 0 || nouIndex >= mateixTipus.length) return;
+
+    // Swap ordre
+    const temp = mateixTipus[index].ordre;
+    mateixTipus[index].ordre = mateixTipus[nouIndex].ordre;
+    mateixTipus[nouIndex].ordre = temp;
+
+    // Update DB
+    const { error: e1 } = await sb.from("festivals").update({ordre: mateixTipus[index].ordre}).eq("id", mateixTipus[index].id);
+    const { error: e2 } = await sb.from("festivals").update({ordre: mateixTipus[nouIndex].ordre}).eq("id", mateixTipus[nouIndex].id);
+    
+    if(e1 || e2) { toast("Error movent", true); console.error(e1, e2); return; }
+    renderMain();
   }
 
   function buildFestivalForm(){
@@ -1128,6 +1050,20 @@
       form.appendChild(d);
       return i;
     }
+
+    // Tipus
+    const dTipus = document.createElement("div");
+    dTipus.className = "field";
+    dTipus.innerHTML = '<label for="f_tipus">Tipus *</label>';
+    const selTipus = document.createElement("select");
+    selTipus.id = "f_tipus";
+    ["tac", "amics"].forEach(t=>{
+      const o = document.createElement("option");
+      o.value = t; o.textContent = t === "tac" ? "Festival TAC" : "Amic del TAC";
+      o.selected = (f.tipus || "tac") === t;
+      selTipus.appendChild(o);
+    });
+    dTipus.appendChild(selTipus); form.appendChild(dTipus);
 
     const nom = field("Nom *","nom","text", f.nom || "");
     const ciutat = field("Ciutat","ciutat","text", f.ciutat || "");
@@ -1197,9 +1133,18 @@
       ev.preventDefault();
       if(!nom.value.trim()){ toast("El nom és obligatori", true); return; }
 
+      let ordreFinal = f.ordre;
+      if(!isEdit || (isEdit && f.tipus !== selTipus.value)){
+        // Si és nou o ha canviat de tipus, l'afegim a l'última posició del seu tipus
+        const existents = FESTIVALS.filter(x => x.year === currentYear && x.tipus === selTipus.value && x.id !== f.id);
+        ordreFinal = existents.length > 0 ? Math.max(...existents.map(x=>x.ordre)) + 1 : 0;
+      }
+
       const payload = {
         year: currentYear,
         nom: nom.value.trim(),
+        tipus: selTipus.value,
+        ordre: ordreFinal,
         ciutat: ciutat.value.trim() || null,
         pais: pais.value.trim() || null,
         web: web.value.trim() || null,
