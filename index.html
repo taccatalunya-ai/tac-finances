@@ -206,7 +206,7 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const SECTION_LABELS = {ingressos:"Ingressos", despeses:"Despeses", quotes:"Quotes", festivals:"Festivals", notes:"Notes"};
-  let YEARS = [2026, 2025, 2024];
+  let YEARS = []; // Ara es construeix dinàmicament
   const QUOTA_TAC = 60, QUOTA_AMICS = 10;
 
   const ESTATS = ["pendent","contactat","confirmat","pagat","descartat"];
@@ -311,8 +311,6 @@
     if(error) throw error;
 
     const result = {};
-    YEARS.forEach(y=>{ result[y] = {ingressos:[], despeses:[]}; });
-
     (data||[]).forEach(r=>{
       const y = r.year;
       if(!result[y]) result[y] = {ingressos:[], despeses:[]};
@@ -340,12 +338,27 @@
     try{
       DATA = await fetchAll();
       await fetchFestivals();
+      
+      // Construïm la llista d'anys dinàmicament
+      const anysSet = new Set();
+      Object.keys(DATA).forEach(y => anysSet.add(Number(y)));
+      FESTIVALS.forEach(f => anysSet.add(Number(f.year)));
+      
+      if(anysSet.size > 0){
+        YEARS = Array.from(anysSet).sort((a,b)=> b - a);
+      } else {
+        YEARS = [new Date().getFullYear()];
+      }
+
       const { data: prof } = await sb.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();
       MY_ROLE = (prof && prof.role) || 'viewer';
+      
       await loadNotes();
+      
       if(YEARS.length > 0 && !YEARS.includes(currentYear)){
         currentYear = YEARS[0];
       }
+      
       showApp();
       renderAll();
     }catch(err){
@@ -791,7 +804,7 @@
     if(!isAdmin()){ toast("No tens permisos", true); return; }
     const any = currentYear;
     if(any == null){ toast("No hi ha cap any seleccionat", true); return; }
-    if(!confirm("ATENCIÓ: Esborraràs TOTES les dades de l'any " + any + " (finances, quotes i festivals).\n\nSegur que vols continuar?")) return;
+    if(!confirm("ATENCIÓ: Esborraràs TOTES les dades de l'any " + any + " (finances i festivals).\n\nSegur que vols continuar?")) return;
     if(!confirm("Confirma-ho una altra vegada: esborrar l'any " + any + " és irreversible.")) return;
 
     toast("Esborrant l'any " + any + "…");
@@ -880,125 +893,119 @@
       wrap.appendChild(buildFestivalForm());
     }
 
-    // Llistat
-    const panel = document.createElement("div");
-    panel.className = "panel";
-    const list = festivalsOfYear()
-      .filter(f=> festivalFilterEstat === "tots" || f.estat === festivalFilterEstat)
-      .filter(f=> !festivalSearch || (f.nom||"").toLowerCase().includes(festivalSearch.toLowerCase()))
-      .sort((a,b)=> {
-        if(a.tipus !== b.tipus) return a.tipus.localeCompare(b.tipus);
-        return a.ordre - b.ordre;
+    // Funció auxiliar per pintar una taula d'un tipus
+    const pintaTaula = (tipus, titol) => {
+      const panel = document.createElement("div");
+      panel.className = "panel";
+      panel.innerHTML = `<h3>${titol}</h3>`;
+
+      const list = festivalsOfYear()
+        .filter(f => f.tipus === tipus)
+        .filter(f=> festivalFilterEstat === "tots" || f.estat === festivalFilterEstat)
+        .filter(f=> !festivalSearch || (f.nom||"").toLowerCase().includes(festivalSearch.toLowerCase()))
+        .sort((a,b)=> a.ordre - b.ordre);
+
+      if(list.length === 0){
+        const empty = document.createElement("div");
+        empty.style.color = "var(--text-muted)";
+        empty.style.fontSize = "14px";
+        empty.style.padding = "10px 0";
+        empty.textContent = "No hi ha festivals per a aquest filtre.";
+        panel.appendChild(empty);
+        return panel;
+      }
+
+      const table = document.createElement("table");
+      table.className = "festival-table";
+      table.innerHTML = '<thead><tr>'+
+        '<th>Nom</th><th>Ciutat</th><th>Dates</th><th>Contacte</th>'+
+        '<th class="num">Quota</th><th>Estat</th>'+
+        (isAdmin() ? '<th></th>' : '')+
+        '</tr></thead>';
+      const tbody = document.createElement("tbody");
+
+      list.forEach(f=>{
+        const tr = document.createElement("tr");
+
+        const tdNom = document.createElement("td");
+        tdNom.innerHTML = '<div><b>'+pendent(f.nom,'Sense nom')+'</b></div>'+
+          (isEmpty(f.web) ? '<div class="pendent-info" style="font-size:11.5px;">Sense web</div>'
+            : '<div><a href="'+esc(f.web)+'" target="_blank" rel="noopener" style="font-size:11.5px;">'+esc(f.web)+'</a></div>');
+        tr.appendChild(tdNom);
+
+        const tdCiutat = document.createElement("td");
+        tdCiutat.innerHTML = isEmpty(f.ciutat) ? '<span class="pendent-info">Pendent</span>' : esc(f.ciutat);
+        tr.appendChild(tdCiutat);
+
+        const tdDates = document.createElement("td");
+        if(isEmpty(f.data_inici) && isEmpty(f.data_fi)){
+          tdDates.innerHTML = '<span class="pendent-info">Pendent</span>';
+        } else {
+          tdDates.textContent = formatDateShort(f.data_inici) + " – " + formatDateShort(f.data_fi);
+        }
+        tr.appendChild(tdDates);
+
+        const tdContacte = document.createElement("td");
+        const parts = [];
+        if(!isEmpty(f.contacte_nom)) parts.push('<div>'+esc(f.contacte_nom)+'</div>');
+        if(!isEmpty(f.contacte_email)) parts.push('<div><a href="mailto:'+esc(f.contacte_email)+'" style="font-size:11.5px;">'+esc(f.contacte_email)+'</a></div>');
+        tdContacte.innerHTML = parts.length ? parts.join("") : '<span class="pendent-info">Pendent</span>';
+        tr.appendChild(tdContacte);
+
+        const tdQuota = document.createElement("td");
+        tdQuota.className = "num";
+        const imp = Number(f.quota_import) || 0;
+        tdQuota.innerHTML = fmt(imp) +
+          (f.quota_pagada
+            ? '<div style="font-size:11px;color:var(--positive);">Pagat'+(f.quota_data_pagament?' · '+formatDateShort(f.quota_data_pagament):'')+'</div>'
+            : '<div class="pendent-info" style="font-size:11px;">No pagat</div>');
+        tr.appendChild(tdQuota);
+
+        const tdEstat = document.createElement("td");
+        const est = (f.estat || "pendent").toLowerCase();
+        tdEstat.innerHTML = '<span class="badge '+esc(est)+'">'+esc(est)+'</span>';
+        tr.appendChild(tdEstat);
+
+        if(isAdmin()){
+          const tdAct = document.createElement("td");
+          tdAct.className = "actions";
+          
+          const btnUp = document.createElement("button");
+          btnUp.className = "icon-btn move-btn"; btnUp.innerHTML = "↑"; btnUp.title = "Pujar";
+          btnUp.style.marginRight = "4px";
+          btnUp.addEventListener("click", ()=> moureFestival(f, -1));
+          
+          const btnDown = document.createElement("button");
+          btnDown.className = "icon-btn move-btn"; btnDown.innerHTML = "↓"; btnDown.title = "Baixar";
+          btnDown.style.marginRight = "4px";
+          btnDown.addEventListener("click", ()=> moureFestival(f, 1));
+
+          const btnEdit = document.createElement("button");
+          btnEdit.className = "icon-btn"; btnEdit.textContent = "✎"; btnEdit.title = "Editar";
+          btnEdit.style.marginRight = "4px";
+          btnEdit.addEventListener("click", ()=>{ editingFestivalId = f.id; renderMain(); });
+          
+          const btnDel = document.createElement("button");
+          btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar";
+          btnDel.addEventListener("click", ()=> removeFestival(f));
+          
+          tdAct.appendChild(btnUp); tdAct.appendChild(btnDown);
+          tdAct.appendChild(btnEdit); tdAct.appendChild(btnDel);
+          tr.appendChild(tdAct);
+        }
+
+        tbody.appendChild(tr);
       });
 
-    if(list.length === 0){
-      const empty = document.createElement("div");
-      empty.style.color = "var(--text-muted)";
-      empty.style.fontSize = "14px";
-      empty.style.padding = "10px 0";
-      empty.textContent = "No hi ha festivals per a aquest filtre.";
-      panel.appendChild(empty);
-      wrap.appendChild(panel);
-      return wrap;
-    }
+      table.appendChild(tbody);
+      panel.appendChild(table);
+      return panel;
+    };
 
-    const table = document.createElement("table");
-    table.className = "festival-table";
-    table.innerHTML = '<thead><tr>'+
-      '<th>Nom</th><th>Tipus</th><th>Ciutat</th><th>Dates</th><th>Contacte</th>'+
-      '<th class="num">Quota</th><th>Estat</th>'+
-      (isAdmin() ? '<th></th>' : '')+
-      '</tr></thead>';
-    const tbody = document.createElement("tbody");
+    // Afegim les dues taules: primer TAC, després Amics
+    wrap.appendChild(pintaTaula('tac', 'Festivals TAC'));
+    wrap.appendChild(pintaTaula('amics', 'Festivals Amics del TAC'));
 
-    list.forEach(f=>{
-      const tr = document.createElement("tr");
-
-      // Nom + web
-      const tdNom = document.createElement("td");
-      tdNom.innerHTML = '<div><b>'+pendent(f.nom,'Sense nom')+'</b></div>'+
-        (isEmpty(f.web) ? '<div class="pendent-info" style="font-size:11.5px;">Sense web</div>'
-          : '<div><a href="'+esc(f.web)+'" target="_blank" rel="noopener" style="font-size:11.5px;">'+esc(f.web)+'</a></div>');
-      tr.appendChild(tdNom);
-
-      // Tipus
-      const tdTipus = document.createElement("td");
-      tdTipus.innerHTML = '<span class="badge '+esc(f.tipus)+'">'+esc(f.tipus)+'</span>';
-      tr.appendChild(tdTipus);
-
-      // Ciutat
-      const tdCiutat = document.createElement("td");
-      tdCiutat.innerHTML = isEmpty(f.ciutat) ? '<span class="pendent-info">Pendent</span>' : esc(f.ciutat);
-      tr.appendChild(tdCiutat);
-
-      // Dates
-      const tdDates = document.createElement("td");
-      if(isEmpty(f.data_inici) && isEmpty(f.data_fi)){
-        tdDates.innerHTML = '<span class="pendent-info">Pendent</span>';
-      } else {
-        tdDates.textContent = formatDateShort(f.data_inici) + " – " + formatDateShort(f.data_fi);
-      }
-      tr.appendChild(tdDates);
-
-      // Contacte
-      const tdContacte = document.createElement("td");
-      const parts = [];
-      if(!isEmpty(f.contacte_nom)) parts.push('<div>'+esc(f.contacte_nom)+'</div>');
-      if(!isEmpty(f.contacte_email)) parts.push('<div><a href="mailto:'+esc(f.contacte_email)+'" style="font-size:11.5px;">'+esc(f.contacte_email)+'</a></div>');
-      tdContacte.innerHTML = parts.length ? parts.join("") : '<span class="pendent-info">Pendent</span>';
-      tr.appendChild(tdContacte);
-
-      // Quota
-      const tdQuota = document.createElement("td");
-      tdQuota.className = "num";
-      const imp = Number(f.quota_import) || 0;
-      tdQuota.innerHTML = fmt(imp) +
-        (f.quota_pagada
-          ? '<div style="font-size:11px;color:var(--positive);">Pagat'+(f.quota_data_pagament?' · '+formatDateShort(f.quota_data_pagament):'')+'</div>'
-          : '<div class="pendent-info" style="font-size:11px;">No pagat</div>');
-      tr.appendChild(tdQuota);
-
-      // Estat
-      const tdEstat = document.createElement("td");
-      const est = (f.estat || "pendent").toLowerCase();
-      tdEstat.innerHTML = '<span class="badge '+esc(est)+'">'+esc(est)+'</span>';
-      tr.appendChild(tdEstat);
-
-      // Accions
-      if(isAdmin()){
-        const tdAct = document.createElement("td");
-        tdAct.className = "actions";
-        
-        const btnUp = document.createElement("button");
-        btnUp.className = "icon-btn move-btn"; btnUp.innerHTML = "↑"; btnUp.title = "Pujar";
-        btnUp.style.marginRight = "4px";
-        btnUp.addEventListener("click", ()=> moureFestival(f, -1));
-        
-        const btnDown = document.createElement("button");
-        btnDown.className = "icon-btn move-btn"; btnDown.innerHTML = "↓"; btnDown.title = "Baixar";
-        btnDown.style.marginRight = "4px";
-        btnDown.addEventListener("click", ()=> moureFestival(f, 1));
-
-        const btnEdit = document.createElement("button");
-        btnEdit.className = "icon-btn"; btnEdit.textContent = "✎"; btnEdit.title = "Editar";
-        btnEdit.style.marginRight = "4px";
-        btnEdit.addEventListener("click", ()=>{ editingFestivalId = f.id; renderMain(); });
-        
-        const btnDel = document.createElement("button");
-        btnDel.className = "icon-btn"; btnDel.textContent = "✕"; btnDel.title = "Eliminar";
-        btnDel.addEventListener("click", ()=> removeFestival(f));
-        
-        tdAct.appendChild(btnUp); tdAct.appendChild(btnDown);
-        tdAct.appendChild(btnEdit); tdAct.appendChild(btnDel);
-        tr.appendChild(tdAct);
-      }
-
-      tbody.appendChild(tr);
-    });
-
-    table.appendChild(tbody);
-    panel.appendChild(table);
-    wrap.appendChild(panel);
     return wrap;
   }
 
@@ -1067,7 +1074,7 @@
 
     const nom = field("Nom *","nom","text", f.nom || "");
     const ciutat = field("Ciutat","ciutat","text", f.ciutat || "");
-    const pais = field("País","pais","text", f.pais || "Espanya");
+    const pais = field("Pais","pais","text", f.pais || "Espanya");
     const web = field("Web","web","url", f.web || "");
     const cNom = field("Contacte (nom)","contacte_nom","text", f.contacte_nom || "");
     const cEmail = field("Contacte (email)","contacte_email","email", f.contacte_email || "");
@@ -1135,7 +1142,6 @@
 
       let ordreFinal = f.ordre;
       if(!isEdit || (isEdit && f.tipus !== selTipus.value)){
-        // Si és nou o ha canviat de tipus, l'afegim a l'última posició del seu tipus
         const existents = FESTIVALS.filter(x => x.year === currentYear && x.tipus === selTipus.value && x.id !== f.id);
         ordreFinal = existents.length > 0 ? Math.max(...existents.map(x=>x.ordre)) + 1 : 0;
       }
