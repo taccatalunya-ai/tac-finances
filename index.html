@@ -1,8 +1,3 @@
-Aquí tens el fitxer **`index.html` sencer** amb l'últim canvi integrat: la fila de **"Cobraments de quotes"** al resum del Pressupost ara surt destacada amb un fons diferent i una icona, per deixar clar que és un càlcul automàtic.
-
-Substitueix tot el teu fitxer per aquest:
-
-```html
 <!DOCTYPE html>
 <html lang="ca">
 <head>
@@ -533,7 +528,7 @@ Substitueix tot el teu fitxer per aquest:
 
     const pIng = document.createElement("div");
     pIng.className = "panel";
-    pIng.innerHTML = '<h3>Detall d\'Ingressos manuals</h3>';
+    pIng.innerHTML = '<h3>Detall d\'Ingressos</h3>';
     pIng.appendChild(buildMoneyTable("ingressos"));
     wrap.appendChild(pIng);
 
@@ -560,6 +555,7 @@ Substitueix tot el teu fitxer per aquest:
       (hasJust ? '<th>Justificant</th>' : '')+(editable ? '<th></th>' : '')+'</tr></thead>';
     const tbody = document.createElement("tbody");
 
+    // 1. Files manuals
     rows.forEach(row=>{
       const tr = document.createElement("tr");
       const tdC = document.createElement("td");
@@ -615,13 +611,36 @@ Substitueix tot el teu fitxer per aquest:
       tbody.appendChild(tr);
     });
 
+    // 2. Si és la taula d'ingressos, afegim la fila automàtica de quotes
+    if(kind === "ingressos"){
+      const quotesAny = FESTIVALS.filter(f => f.year === currentYear);
+      const cobratQuotesPrevist = quotesAny.reduce((acc, f) => acc + (f.quota_import || 0), 0);
+      const cobratQuotesReal = quotesAny.filter(f => f.quota_pagada).reduce((acc, f) => acc + (f.quota_import || 0), 0);
+
+      const trQ = document.createElement("tr");
+      trQ.style.background = "var(--surface-2)";
+      trQ.style.fontStyle = "italic";
+      trQ.innerHTML = `
+        <td style="color:var(--text-muted); font-size:13px;">⚙️ Cobraments de quotes (automàtic)</td>
+        <td class="num" style="color:var(--positive);">${fmt(cobratQuotesPrevist)}</td>
+        <td class="num" style="color:var(--positive);">${fmt(cobratQuotesReal)}</td>
+        <td></td>
+      `;
+      tbody.appendChild(trQ);
+    }
+
+    // 3. Fila de Total (incloent la fila de quotes si és ingressos)
+    const totalPrevist = sum(rows,"previst") + (kind === "ingressos" ? FESTIVALS.filter(f => f.year === currentYear).reduce((acc, f) => acc + (f.quota_import || 0), 0) : 0);
+    const totalReal = sum(rows,"real") + (kind === "ingressos" ? FESTIVALS.filter(f => f.year === currentYear && f.quota_pagada).reduce((acc, f) => acc + (f.quota_import || 0), 0) : 0);
+
     const trT = document.createElement("tr");
     trT.className = "total-row";
-    trT.innerHTML = '<td>Total</td>'+
-      '<td class="num" data-total="previst-'+kind+'">'+fmt(sum(rows,"previst"))+'</td>'+
-      '<td class="num" data-total="real-'+kind+'">'+fmt(sum(rows,"real"))+'</td>'+
+    trT.innerHTML = '<td>Total '+ (kind === "ingressos" ? "Ingressos (amb quotes)" : "Despeses") +'</td>'+
+      '<td class="num" data-total="previst-'+kind+'">'+fmt(totalPrevist)+'</td>'+
+      '<td class="num" data-total="real-'+kind+'">'+fmt(totalReal)+'</td>'+
       (hasJust ? '<td></td>' : '')+(editable ? '<td></td>' : '');
     tbody.appendChild(trT);
+    
     table.appendChild(tbody);
     container.appendChild(table);
 
@@ -646,10 +665,15 @@ Substitueix tot el teu fitxer per aquest:
 
   function updateTotals(kind){
     const rows = DATA[currentYear][kind];
+    
+    // Actualitzar el total de la taula de detall
+    const totalPrevist = sum(rows,"previst") + (kind === "ingressos" ? FESTIVALS.filter(f => f.year === currentYear).reduce((acc, f) => acc + (f.quota_import || 0), 0) : 0);
+    const totalReal = sum(rows,"real") + (kind === "ingressos" ? FESTIVALS.filter(f => f.year === currentYear && f.quota_pagada).reduce((acc, f) => acc + (f.quota_import || 0), 0) : 0);
+
     const tp = document.querySelector('[data-total="previst-'+kind+'"]');
     const tr = document.querySelector('[data-total="real-'+kind+'"]');
-    if(tp) tp.textContent = fmt(sum(rows,"previst"));
-    if(tr) tr.textContent = fmt(sum(rows,"real"));
+    if(tp) tp.textContent = fmt(totalPrevist);
+    if(tr) tr.textContent = fmt(totalReal);
     
     // Actualitzar el resum de dalt
     const d = DATA[currentYear];
