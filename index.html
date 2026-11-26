@@ -1264,6 +1264,44 @@
 
     wrap.appendChild(filters);
 
+    // Botó d'importar CSV (només admin)
+    if(isAdmin()){
+      const importDiv = document.createElement("div");
+      importDiv.style.marginBottom = "14px";
+      importDiv.style.display = "flex";
+      importDiv.style.gap = "10px";
+      importDiv.style.alignItems = "center";
+      importDiv.style.flexWrap = "wrap";
+
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = ".csv";
+      fileInput.style.display = "none";
+
+      const btnImport = document.createElement("button");
+      btnImport.className = "add-row-btn";
+      btnImport.style.marginTop = "0";
+      btnImport.textContent = "📥 Importar festivals des de CSV";
+      btnImport.addEventListener("click", ()=> fileInput.click());
+
+      fileInput.addEventListener("change", async (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        await importarCSV(file);
+        fileInput.value = "";
+      });
+
+      const helpText = document.createElement("span");
+      helpText.style.fontSize = "12px";
+      helpText.style.color = "var(--text-muted)";
+      helpText.innerHTML = 'Columnes: <code>Nom,Tipus,Ciutat,Pais,Web,ContacteNom,ContacteEmail,DataInici,DataFi,Notes,Estat</code>';
+
+      importDiv.appendChild(btnImport);
+      importDiv.appendChild(fileInput);
+      importDiv.appendChild(helpText);
+      wrap.appendChild(importDiv);
+    }
+
     if(isAdmin()){
       wrap.appendChild(buildFestivalForm());
     }
@@ -1608,6 +1646,150 @@
 
     panel.appendChild(form);
     return panel;
+  }
+
+  async function importarCSV(file){
+    if(!isAdmin()){ toast("No tens permisos", true); return; }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try{
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+        if(lines.length < 2){ toast("El CSV està buit o no té files de dades", true); return; }
+
+        const sep = lines[0].includes(";") ? ";" : ",";
+        const headers = lines[0].split(sep).map(h => h.trim().toLowerCase());
+
+        const idx = {
+          nom: headers.indexOf("nom"),
+          tipus: headers.indexOf("tipus"),
+          ciutat: headers.indexOf("ciutat"),
+          pais: headers.indexOf("pais"),
+          web: headers.indexOf("web"),
+          contacte_nom: headers.indexOf("contactenom"),
+          contacte_email: headers.indexOf("contacteemail"),
+          data_inici: headers.indexOf("datainici"),
+          data_fi: headers.indexOf("datafi"),
+          notes: headers.indexOf("notes"),
+          estat: headers.indexOf("estat")
+        };
+
+        if(idx.nom === -1){ toast("El CSV ha de tenir una columna 'Nom'", true); return; }
+
+        const aCrear = [];
+        const aActualitzar = [];
+        const errors = [];
+
+        const existents = FESTIVALS.filter(f => f.year === currentYear);
+        let maxOrdreTac = existents.filter(f => f.tipus === 'tac').length > 0 
+          ? Math.max(...existents.filter(f => f.tipus === 'tac').map(f=>f.ordre)) 
+          : -1;
+        let maxOrdreAmics = existents.filter(f => f.tipus === 'amics').length > 0 
+          ? Math.max(...existents.filter(f => f.tipus === 'amics').map(f=>f.ordre)) 
+          : -1;
+
+        for(let i = 1; i < lines.length; i++){
+          const row = lines[i].split(sep).map(c => c.trim());
+          if(row.length < 1 || !row[idx.nom]) continue;
+
+          const nom = row[idx.nom];
+          if(!nom) continue;
+
+          const payload = {};
+          if(idx.tipus !== -1 && row[idx.tipus]) payload.tipus = row[idx.tipus].toLowerCase() === 'amics' ? 'amics' : 'tac';
+          if(idx.ciutat !== -1 && row[idx.ciutat]) payload.ciutat = row[idx.ciutat];
+          if(idx.pais !== -1 && row[idx.pais]) payload.pais = row[idx.pais];
+          if(idx.web !== -1 && row[idx.web]){
+            let webVal = row[idx.web];
+            if(!/^https?:\/\//i.test(webVal)) webVal = 'https://' + webVal;
+            payload.web = webVal;
+          }
+          if(idx.contacte_nom !== -1 && row[idx.contacte_nom]) payload.contacte_nom = row[idx.contacte_nom];
+          if(idx.contacte_email !== -1 && row[idx.contacte_email]) payload.contacte_email = row[idx.contacte_email];
+          
+          if(idx.data_inici !== -1 && row[idx.data_inici]){
+            const iso = ddmmaaaaToISO(row[idx.data_inici]);
+            if(iso) payload.data_inici = iso;
+          }
+          if(idx.data_fi !== -1 && row[idx.data_fi]){
+            const iso = ddmmaaaaToISO(row[idx.data_fi]);
+            if(iso) payload.data_fi = iso;
+          }
+          
+          if(idx.notes !== -1 && row[idx.notes]) payload.notes = row[idx.notes];
+          if(idx.estat !== -1 && row[idx.estat]) payload.estat = row[idx.estat];
+
+          const existent = FESTIVALS.find(f => 
+            Number(f.year) === Number(currentYear) && 
+            f.nom.toLowerCase() === nom.toLowerCase()
+          );
+
+          if(existent){
+            aActualitzar.push({ id: existent.id, nom: nom, payload: payload });
+          } else {
+            const tipusNou = payload.tipus || 'tac';
+            const ordre = tipusNou === 'tac' ? ++maxOrdreTac : ++maxOrdreAmics;
+            
+            const payloadNou = {
+              year: currentYear,
+              nom: nom,
+              tipus: tipusNou,
+              ordre: ordre,
+              ciutat: payload.ciutat || null,
+              pais: payload.pais || 'Espanya',
+              web: payload.web || null,
+              contacte_nom: payload.contacte_nom || null,
+              contacte_email: payload.contacte_email || null,
+              data_inici: payload.data_inici || null,
+              data_fi: payload.data_fi || null,
+              quota_import: tipusNou === 'tac' ? QUOTA_TAC : QUOTA_AMICS,
+              quota_pagada: false,
+              quota_data_pagament: null,
+              estat: payload.estat || 'pendent',
+              notes: payload.notes || null,
+              updated_at: new Date().toISOString()
+            };
+
+            aCrear.push(payloadNou);
+          }
+        }
+
+        if(aCrear.length === 0 && aActualitzar.length === 0){
+          toast("No hi ha res per importar", true); return;
+        }
+
+        let msg = "Resum de la importació per a l'any " + currentYear + ":\n\n";
+        msg += "📥 Es crearan: " + aCrear.length + " festivals\n";
+        msg += "✏️ S'actualitzaran: " + aActualitzar.length + " festivals\n";
+        msg += "\nVols continuar?";
+        
+        if(aActualitzar.length > 0){
+          msg += "\n\nFestivals que s'actualitzaran:\n";
+          aActualitzar.forEach(a => { msg += "· " + a.nom + "\n"; });
+        }
+
+        if(!confirm(msg)) return;
+
+        if(aCrear.length > 0){
+          const { error } = await sb.from("festivals").insert(aCrear);
+          if(error){ toast("Error creant festivals: " + error.message, true); console.error(error); return; }
+        }
+
+        for(const act of aActualitzar){
+          const { error } = await sb.from("festivals").update(act.payload).eq("id", act.id);
+          if(error){ console.error("Error actualitzant " + act.nom + ":", error); }
+        }
+
+        toast("✅ Importació completada: " + aCrear.length + " creats, " + aActualitzar.length + " actualitzats");
+        await fetchFestivals();
+        renderMain();
+      }catch(err){
+        console.error(err);
+        toast("Error llegint el CSV: " + (err.message||err), true);
+      }
+    };
+    reader.readAsText(file);
   }
 
   async function removeFestival(f){
